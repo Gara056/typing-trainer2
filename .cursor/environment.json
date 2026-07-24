@@ -1,0 +1,5 @@
+{
+  "snapshot": "POP_OS_22_04",
+  "install": "export NVM_DIR=\"$HOME/.nvm\"; . \"$NVM_DIR/nvm.sh\"; nvm install 24; nvm use 24; export PATH=\"$HOME/.nvm/versions/node/v24.18.0/bin:$PATH\"; npm install -g open-design-ade open-design-mcp; ./scripts/od-start.sh || true",
+  "start": "export PATH=\"$HOME/.nvm/versions/node/v24.18.0/bin:$PATH\"; ./scripts/od-start.sh || true"
+}

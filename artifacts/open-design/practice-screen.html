@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Typing Trainer — Practice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+:root {
+  --bg: #f3ede3;
+  --surface: #fff9f1;
+  --fg: #1a1814;
+  --muted: #6e665c;
+  --border: #d9d0c3;
+  --accent: #0f7a5a;
+  --accent-hover: #0c654a;
+  --danger: #b42318;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --elev-1: 0 8px 24px color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+    linear-gradient(180deg, #f7f1e7 0%, var(--bg) 45%, #ebe4d8 100%);
+  color: var(--fg);
+  font-family: var(--font-body);
+}
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+  animation: rise 480ms ease both;
+}
+
+.intent {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 36ch;
+  animation: rise 560ms ease both;
+}
+
+.cta-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  animation: rise 640ms ease both;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font: 500 0.95rem var(--font-body);
+  cursor: pointer;
+  transition: background 160ms ease, transform 120ms ease, border-color 160ms ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: var(--surface); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: transparent; border-color: var(--border); color: var(--fg); }
+.btn-secondary:hover { border-color: var(--fg); }
+
+.stage {
+  margin-top: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: clamp(24px, 4vw, 48px);
+  min-height: 42vh;
+  display: grid;
+  align-content: center;
+  box-shadow: var(--elev-1);
+  animation: rise 720ms ease both;
+}
+
+.prompt {
+  font-family: var(--font-mono);
+  font-size: clamp(1.15rem, 2.4vw, 1.65rem);
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  white-space: pre-wrap;
+}
+
+.char.done { color: color-mix(in srgb, var(--fg) 45%, transparent); }
+.char.current {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 3px;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.char.bad { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+
+.meta {
+  margin-top: 28px;
+  display: flex;
+  gap: 20px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.meta strong { color: var(--fg); font-weight: 500; }
+
+.foot {
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .shell { padding: 20px 16px 32px; }
+  .stage { min-height: 50vh; }
+}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <h1 class="brand">Typing Trainer</h1>
+      <p class="intent">Warm up your hands. One clean stream. No chrome in the way.</p>
+      <div class="cta-row">
+        <button class="btn btn-primary" id="start" type="button">Start practice</button>
+        <button class="btn btn-secondary" id="reset" type="button">Reset</button>
+      </div>
+    </header>
+
+    <section class="stage" aria-label="Practice stream">
+      <p class="prompt" id="prompt" aria-live="polite"></p>
+      <div class="meta">
+        <div>WPM <strong id="wpm">0</strong></div>
+        <div>Accuracy <strong id="acc">100%</strong></div>
+      </div>
+    </section>
+
+    <p class="foot">Open Design artifact · design system <code>typing-trainer</code> · skill <code>frontend-design</code></p>
+  </main>
+  <script>
+    const TEXT = "The quick brown fox keeps cadence while you chase clean keystrokes across warm paper.";
+    const promptEl = document.getElementById("prompt");
+    const wpmEl = document.getElementById("wpm");
+    const accEl = document.getElementById("acc");
+    let index = 0;
+    let errors = 0;
+    let startedAt = null;
+    let active = false;
+
+    function render() {
+      promptEl.innerHTML = [...TEXT].map((ch, i) => {
+        let cls = "char";
+        if (i < index) cls += " done";
+        if (i === index) cls += " current";
+        return `<span class="${cls}">${ch === " " ? "&nbsp;" : ch}</span>`;
+      }).join("");
+    }
+
+    function stats() {
+      if (!startedAt) return;
+      const minutes = Math.max((Date.now() - startedAt) / 60000, 1 / 60);
+      const wpm = Math.round((index / 5) / minutes);
+      const acc = Math.max(0, Math.round((1 - errors / Math.max(index + errors, 1)) * 100));
+      wpmEl.textContent = String(wpm);
+      accEl.textContent = acc + "%";
+    }
+
+    function start() {
+      active = true;
+      index = 0;
+      errors = 0;
+      startedAt = Date.now();
+      render();
+      stats();
+    }
+
+    document.getElementById("start").addEventListener("click", start);
+    document.getElementById("reset").addEventListener("click", () => {
+      active = false;
+      index = 0;
+      errors = 0;
+      startedAt = null;
+      wpmEl.textContent = "0";
+      accEl.textContent = "100%";
+      render();
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (!active) return;
+      if (e.key.length !== 1) return;
+      e.preventDefault();
+      if (e.key === TEXT[index]) {
+        index += 1;
+        if (index >= TEXT.length) active = false;
+      } else {
+        errors += 1;
+        const bad = promptEl.children[index];
+        if (bad) {
+          bad.classList.add("bad");
+          bad.animate(
+            [{ transform: "translateX(0)" }, { transform: "translateX(-3px)" }, { transform: "translateX(3px)" }, { transform: "translateX(0)" }],
+            { duration: 180 }
+          );
+        }
+      }
+      render();
+      stats();
+    });
+
+    render();
+  </script>
+</body>
+</html>
