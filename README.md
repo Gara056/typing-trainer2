@@ -15,12 +15,14 @@ This repo is ready for Cursor (and other coding agents) to design against a real
 | Agent rules | `AGENTS.md`, `.cursor/rules/open-design.mdc` |
 | MCP (Cursor desktop) | `.cursor/mcp.json` |
 
-### 1. Start the local Open Design daemon
+### 1. Install + start the local Open Design daemon
+
+Do **not** use `npm install -g` (it writes to `/usr` and often fails with `EACCES`). Install into the repo instead:
 
 ```bash
-npm install -g open-design-ade open-design-mcp   # Node 24+
-./scripts/od-start.sh
-# UI + API → http://127.0.0.1:7456
+./scripts/od-install.sh    # npm install into ./node_modules (uses nvm Node 24 if present)
+./scripts/od-start.sh      # UI + API → http://127.0.0.1:7456
+curl -s http://127.0.0.1:7456/api/health
 ```
 
 ### 2. Connect Cursor MCP

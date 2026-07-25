@@ -18,10 +18,11 @@ This project uses the Open Design agent-native design loop:
 ### Start the daemon
 
 ```bash
+./scripts/od-install.sh   # local npm install — never use npm install -g here
 ./scripts/od-start.sh
 ```
 
-Requires Node 24+ and `open-design-ade` (`npm i -g open-design-ade`).
+Requires Node 20+ (24 preferred via nvm). Packages live in `./node_modules`, not global `/usr`.
 
 ### Cursor MCP (desktop)
 
