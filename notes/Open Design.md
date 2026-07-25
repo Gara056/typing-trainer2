@@ -36,9 +36,9 @@ Coding agent (Cursor, Claude Code, Codex и др.) становится **design
 ## Подключение к Cursor
 
 ```bash
-npm i -g open-design-ade open-design-mcp   # Node 24+
-./scripts/od-start.sh                      # http://127.0.0.1:7456
-# или полный CLI: od mcp install cursor
+./scripts/od-install.sh   # локально в ./node_modules — НЕ npm install -g (EACCES)
+./scripts/od-start.sh     # http://127.0.0.1:7456
+# затем в Cursor: Settings → Tools & MCP → toggle open-design
 ```
 
 В проекте `typing-trainer2` уже есть:
