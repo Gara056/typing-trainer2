@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Учёт КФХ — 3 варианта логина</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
+    header { padding: 20px 24px; border-bottom: 1px solid #333; }
+    h1 { margin: 0 0 6px; font-size: 1.25rem; }
+    p { margin: 0; color: #aaa; font-size: .9rem; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 12px; height: calc(100vh - 84px); }
+    .col { display: flex; flex-direction: column; min-height: 0; border: 1px solid #333; border-radius: 10px; overflow: hidden; }
+    .col h2 { margin: 0; padding: 10px 12px; font-size: .85rem; background: #1a1a1a; border-bottom: 1px solid #333; }
+    iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+    @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; height: auto; } .col { height: 70vh; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Учёт КФХ — варианты логина</h1>
+    <p>A спокойный фермерский · B operational · C mobile-first кладовщик · исходник: uchet.garaboy.ru</p>
+  </header>
+  <div class="grid">
+    <section class="col"><h2>A · Calm farm</h2><iframe src="./A-calm-farm.html" title="A"></iframe></section>
+    <section class="col"><h2>B · Operational</h2><iframe src="./B-operational.html" title="B"></iframe></section>
+    <section class="col"><h2>C · Mobile storekeeper</h2><iframe src="./C-mobile-storekeeper.html" title="C"></iframe></section>
+  </div>
+</body>
+</html>

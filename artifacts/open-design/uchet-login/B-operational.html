@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Учёт КФХ — B · Плотный operational</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #12151a;
+      --rail: #1a1f27;
+      --surface: #222833;
+      --fg: #edf1f7;
+      --muted: #9aa3b2;
+      --border: #323a48;
+      --accent: #e2b14a;
+      --accent-ink: #1a1508;
+      --ok: #3d9b6a;
+      --font: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr;
+      background: var(--bg); color: var(--fg); font-family: var(--font);
+    }
+    .aside {
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 40%),
+        var(--rail);
+      border-right: 1px solid var(--border);
+      padding: 48px 40px; display: flex; flex-direction: column; justify-content: space-between;
+      animation: fade .45s ease both;
+    }
+    .brand { font-size: clamp(2rem, 3.5vw, 2.8rem); font-weight: 700; letter-spacing: -.03em; margin: 0; }
+    .meta { margin-top: 12px; color: var(--muted); font-size: .95rem; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 8px; margin-top: 28px;
+      border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px;
+      font-family: var(--mono); font-size: .75rem; color: var(--muted);
+    }
+    .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block; }
+    .foot { color: var(--muted); font-size: .8rem; }
+    .main { display: grid; place-items: center; padding: 32px; animation: rise .5s ease both; }
+    .card { width: min(420px, 100%); }
+    h2 { margin: 0 0 6px; font-size: 1.35rem; font-weight: 600; }
+    .hint { margin: 0 0 22px; color: var(--muted); font-size: .92rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .role {
+      appearance: none; cursor: pointer; text-align: left;
+      background: var(--surface); color: var(--fg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 12px; font: 500 .95rem var(--font);
+      transition: border-color .15s, background .15s;
+    }
+    .role:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+    .role[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+    }
+    .role span { display: block; color: var(--muted); font-size: .75rem; font-weight: 400; margin-top: 4px; }
+    .btn {
+      width: 100%; border: 0; border-radius: 8px; padding: 12px 14px; cursor: pointer;
+      background: var(--accent); color: var(--accent-ink); font: 600 1rem var(--font);
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .tag { margin-top: 16px; color: var(--muted); font-size: .78rem; font-family: var(--mono); }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    @media (max-width: 860px) {
+      body { grid-template-columns: 1fr; }
+      .aside { border-right: 0; border-bottom: 1px solid var(--border); padding: 28px 22px; gap: 18px; }
+      .foot { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="aside">
+    <div>
+      <h1 class="brand">Учёт КФХ</h1>
+      <p class="meta">Операционный контур хозяйства · Галимов Р.М.</p>
+      <div class="chip"><i></i> LOCAL · READY</div>
+    </div>
+    <p class="foot">Склад · продажи · контроль владельца — без лишнего chrome.</p>
+  </aside>
+  <main class="main">
+    <div class="card">
+      <h2>Вход в контур</h2>
+      <p class="hint">Выберите роль. Интерфейс подстроится под сценарий.</p>
+      <div class="grid" role="group" aria-label="Роль">
+        <button class="role" type="button" aria-pressed="true">Владелец<span>Сводка и решения</span></button>
+        <button class="role" type="button" aria-pressed="false">Кладовщик<span>Остатки и движение</span></button>
+        <button class="role" type="button" aria-pressed="false">Продажи<span>Отгрузка и касса</span></button>
+        <button class="role" type="button" aria-pressed="false">Разработчик<span>Сервис</span></button>
+      </div>
+      <button class="btn" type="button">Войти</button>
+      <p class="tag">Вариант B · dense operational</p>
+    </div>
+  </main>
+  <script>
+    const roles = [...document.querySelectorAll(".role")];
+    roles.forEach((btn) => btn.addEventListener("click", () => {
+      roles.forEach((b) => b.setAttribute("aria-pressed", "false"));
+      btn.setAttribute("aria-pressed", "true");
+    }));
+  </script>
+</body>
+</html>
