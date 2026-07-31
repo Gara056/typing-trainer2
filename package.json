@@ -1,0 +1,17 @@
+{
+  "name": "typing-trainer2",
+  "private": true,
+  "description": "Typing trainer with Open Design agent workflow",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "od:install": "npm install",
+    "od:start": "bash ./scripts/od-start.sh",
+    "od:health": "curl -s http://127.0.0.1:7456/api/health"
+  },
+  "dependencies": {
+    "open-design-ade": "^0.4.2",
+    "open-design-mcp": "^0.16.1"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "open-design": {
+      "command": "npx",
+      "args": ["--no-install", "open-design-mcp"],
+      "env": {
+        "OD_DAEMON_URL": "http://127.0.0.1:7456"
+      }
+    }
+  }
+}

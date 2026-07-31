@@ -1,0 +1,49 @@
+/* design-systems/typing-trainer/tokens.css
+ * Machine-readable form of DESIGN.md. Paste the :root block into artifacts
+ * and reference tokens via var(--name). Do not invent hex outside this file.
+ */
+
+:root {
+  --bg: #f3ede3;
+  --surface: #fff9f1;
+  --surface-warm: #ebe3d6;
+  --fg: #1a1814;
+  --fg-2: #3a342c;
+  --muted: #6e665c;
+  --meta: #8a8174;
+  --border: #d9d0c3;
+  --border-soft: #e8e0d4;
+  --accent: #0f7a5a;
+  --accent-hover: #0c654a;
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --success: #0f7a5a;
+  --warn: #c47a12;
+  --danger: #b42318;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 36px;
+  --text-3xl: 56px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+
+  --elev-1: 0 8px 24px color-mix(in srgb, var(--fg) 8%, transparent);
+  --max-width: 1120px;
+  --focus-ring: 0 0 0 2px var(--accent-soft);
+}

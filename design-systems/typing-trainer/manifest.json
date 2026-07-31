@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "od-design-system-project/v1",
+  "id": "typing-trainer",
+  "name": "Typing Trainer",
+  "category": "Education & Productivity",
+  "description": "Kinetic, keyboard-first brand for the typing-trainer2 product — warm paper, ink, deep teal accent.",
+  "source": {
+    "type": "project",
+    "origin": "typing-trainer2 repository"
+  },
+  "files": {
+    "design": "DESIGN.md",
+    "tokens": "tokens.css"
+  }
+}

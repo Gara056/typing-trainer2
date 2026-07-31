@@ -1,0 +1,16 @@
+---
+description: After useful answers, ask about saving to Obsidian
+alwaysApply: true
+---
+
+# Obsidian save prompt
+
+After delivering a useful explanation, decision, setup, or research summary, ask once (in the user's language):
+
+> Сохранить это в Obsidian?
+
+If the user says yes:
+
+1. Prefer writing via Obsidian MCP / vault tools when available.
+2. If the vault is unreachable (e.g. cloud agent without MCP), write an Obsidian-ready Markdown note under `notes/` in the repo (YAML frontmatter + tags) and tell the user the path so they can move it into the vault.
+3. Do not ask again in the same turn after saving.

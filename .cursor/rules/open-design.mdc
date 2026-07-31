@@ -1,0 +1,22 @@
+---
+description: Open Design workflow for this repo
+alwaysApply: true
+---
+
+# Open Design
+
+This repository is wired for [Open Design](https://open-design.ai/) (nexu-io/open-design).
+
+When the user asks for design, UI, prototypes, decks, or visual direction:
+
+1. Read `DESIGN.md` and `design-systems/typing-trainer/tokens.css` first.
+2. Follow the matching skill under `skills/` (start with `frontend-design`; use `taste-skill` if the look feels generic).
+3. Prefer real artifacts: self-contained HTML under `artifacts/open-design/` or production code in the app framework.
+4. Use CSS variables from `tokens.css`. Do not invent palette hex values.
+5. If the Open Design daemon is reachable (`http://127.0.0.1:7456`), create/update project `typing-trainer2`, attach design system `typing-trainer`, and save generated HTML into the project via the API or MCP tools.
+6. Avoid AI-default aesthetics called out in `DESIGN.md` (purple gradients, Inter-as-display, hero cards, pill clusters).
+
+Daemon helpers:
+
+- Health: `curl -s http://127.0.0.1:7456/api/health`
+- Start locally: `./scripts/od-start.sh`
