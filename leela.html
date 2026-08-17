@@ -40,32 +40,48 @@ h1 span{color:var(--gold-2);font-style:italic}
 .tag{color:var(--muted);font-size:13px;max-width:420px;line-height:1.5}
 main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.9fr);gap:22px;align-items:start}
 .board-shell{
-  position:relative;padding:16px;border-radius:22px;
-  background:linear-gradient(180deg,rgba(40,32,22,.7),rgba(16,13,10,.92));
+  position:relative;padding:18px 18px 18px 16px;border-radius:24px;
+  background:
+    linear-gradient(180deg,rgba(48,38,24,.55),rgba(12,10,8,.94)),
+    repeating-linear-gradient(135deg,rgba(201,164,92,.04) 0 2px,transparent 2px 8px);
   border:1px solid var(--line);
-  box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(240,221,176,.12);
+  box-shadow:0 40px 90px rgba(0,0,0,.5),inset 0 1px 0 rgba(240,221,176,.16);
 }
-.board-shell::after{
-  content:"";position:absolute;inset:8px;border-radius:16px;pointer-events:none;
-  border:1px solid rgba(201,164,92,.12);
+.board-shell::before,.board-shell::after{
+  content:"";position:absolute;width:18px;height:18px;pointer-events:none;
+  border:1px solid var(--gold);opacity:.55;
 }
+.board-shell::before{top:10px;left:10px;border-right:0;border-bottom:0}
+.board-shell::after{right:10px;bottom:10px;border-left:0;border-top:0}
+.board-frame{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:stretch}
+.levels{list-style:none;display:grid;grid-template-rows:repeat(8,1fr);padding:2px 0;margin:0}
+.levels li{
+  display:flex;align-items:center;justify-content:center;
+  writing-mode:vertical-rl;transform:rotate(180deg);
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);
+  opacity:.72;font-family:var(--serif);
+}
+.board-stage{position:relative}
 .board{position:relative;display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(8,1fr);gap:5px;aspect-ratio:9/8}
 .cell{
   position:relative;border-radius:8px;padding:6px 6px 8px;cursor:pointer;overflow:hidden;
   border:1px solid rgba(255,255,255,.06);min-height:0;
   transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease,filter .25s;
+  animation:cellIn .5s ease both;
 }
+@keyframes cellIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 .cell::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.1),transparent 42%);pointer-events:none}
 .cell:hover{transform:translateY(-2px) scale(1.02);z-index:2;box-shadow:0 10px 24px rgba(0,0,0,.35);border-color:rgba(240,221,176,.35)}
 .cell .n{font-family:var(--serif);font-size:11px;color:var(--gold-2);opacity:.9}
 .cell .nm{display:block;margin-top:4px;font-size:10px;line-height:1.2;font-weight:600;letter-spacing:.01em}
 .cell .sk{display:block;margin-top:3px;font-size:9px;color:rgba(246,240,228,.62);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.l1{background:linear-gradient(160deg,color-mix(in srgb,var(--l1) 78%,#000),#1a0c0a)}.l2{background:linear-gradient(160deg,color-mix(in srgb,var(--l2) 78%,#000),#1c1008)}
-.l3{background:linear-gradient(160deg,color-mix(in srgb,var(--l3) 78%,#000),#1a1408)}.l4{background:linear-gradient(160deg,color-mix(in srgb,var(--l4) 78%,#000),#07140f)}
-.l5{background:linear-gradient(160deg,color-mix(in srgb,var(--l5) 78%,#000),#081018)}.l6{background:linear-gradient(160deg,color-mix(in srgb,var(--l6) 78%,#000),#0c0818)}
-.l7{background:linear-gradient(160deg,color-mix(in srgb,var(--l7) 78%,#000),#140814)}.l8{background:linear-gradient(160deg,color-mix(in srgb,var(--l8) 78%,#000),#120e08)}
-.cell.goal{box-shadow:inset 0 0 0 2px var(--gold),0 0 18px var(--glow)}
-.cell.current{box-shadow:inset 0 0 0 2px #fff,0 0 0 1px rgba(255,255,255,.2);animation:pulse 2.4s ease-in-out infinite}
+.l1{background:linear-gradient(160deg,#7a342c,#1a0c0a)}.l2{background:linear-gradient(160deg,#9a5626,#1c1008)}
+.l3{background:linear-gradient(160deg,#a88630,#1a1408)}.l4{background:linear-gradient(160deg,#32704f,#07140f)}
+.l5{background:linear-gradient(160deg,#2f5a80,#081018)}.l6{background:linear-gradient(160deg,#4a3680,#0c0818)}
+.l7{background:linear-gradient(160deg,#6a3470,#140814)}.l8{background:linear-gradient(160deg,#5a4a28,#120e08)}
+.cell.goal{box-shadow:inset 0 0 0 2px var(--gold),0 0 22px var(--glow);animation:goal 3.2s ease-in-out infinite}
+@keyframes goal{0%,100%{box-shadow:inset 0 0 0 2px var(--gold),0 0 14px var(--glow)}50%{box-shadow:inset 0 0 0 2px var(--gold-2),0 0 28px var(--glow)}}
+.cell.current{box-shadow:inset 0 0 0 2px #fff,0 0 0 1px rgba(255,255,255,.2);animation:pulse 2.4s ease-in-out infinite;z-index:3}
 @keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
 .badge{position:absolute;right:5px;top:5px;font-size:9px;font-weight:700;padding:2px 5px;border-radius:999px;letter-spacing:.02em}
 .badge.up{background:rgba(111,175,122,.95);color:#06210c}.badge.dn{background:rgba(196,92,74,.95);color:#2a0906}
@@ -76,6 +92,8 @@ main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.9fr);gap:
   box-shadow:0 0 0 2px rgba(255,244,210,.55),0 0 22px rgba(232,197,90,.75),0 8px 16px rgba(0,0,0,.45);
   transition:left .5s cubic-bezier(.22,1,.36,1),top .5s cubic-bezier(.22,1,.36,1),opacity .35s,transform .35s;
 }
+.token:not(.hidden){animation:tokenGlow 2.2s ease-in-out infinite}
+@keyframes tokenGlow{0%,100%{box-shadow:0 0 0 2px rgba(255,244,210,.55),0 0 18px rgba(232,197,90,.55),0 8px 16px rgba(0,0,0,.45)}50%{box-shadow:0 0 0 3px rgba(255,244,210,.8),0 0 28px rgba(232,197,90,.9),0 8px 16px rgba(0,0,0,.45)}}
 .token.hidden{opacity:0;transform:scale(.6);visibility:hidden}
 .side{display:flex;flex-direction:column;gap:14px}
 .row2{display:grid;grid-template-columns:1fr 1.15fr;gap:12px}
@@ -103,8 +121,9 @@ input[type=text]:disabled{opacity:.72;color:var(--gold-2)}
 .turn{display:flex;gap:16px;align-items:center}
 .dice{
   width:78px;height:78px;flex:0 0 78px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
-  padding:12px;border-radius:16px;background:linear-gradient(145deg,#fbf6ea,#d9c49a 58%,#c4a66a);
-  box-shadow:inset 0 1px 0 #fff,0 10px 24px rgba(0,0,0,.35),0 0 0 1px rgba(201,164,92,.35);
+  padding:12px;border-radius:16px;
+  background:linear-gradient(145deg,#fffaf0,#f0e2c4 42%,#c9a45c 120%);
+  box-shadow:inset 0 1px 0 #fff,inset 0 -6px 10px rgba(138,107,46,.18),0 12px 28px rgba(0,0,0,.4),0 0 0 1px rgba(201,164,92,.45);
 }
 .dice.rolling{animation:roll .5s ease-in-out}
 @keyframes roll{0%{transform:rotate(0) scale(1)}25%{transform:rotate(18deg) scale(1.14)}55%{transform:rotate(-28deg) scale(.9)}100%{transform:rotate(360deg) scale(1)}}
@@ -133,14 +152,22 @@ button:disabled{opacity:.5;cursor:wait}
 }
 #win.show{display:grid;animation:rise .5s ease}
 .win-card{
-  width:min(440px,92vw);text-align:center;padding:36px 28px;border-radius:24px;
+  width:min(440px,92vw);text-align:center;padding:36px 28px;border-radius:24px;position:relative;
   background:linear-gradient(180deg,#221a12,#120e0a);border:1px solid var(--gold);
   box-shadow:0 0 80px rgba(201,164,92,.25);
 }
+.win-card::before{
+  content:"";position:absolute;inset:-18px;border-radius:32px;pointer-events:none;
+  border:1px solid rgba(201,164,92,.25);animation:halo 2.8s ease-in-out infinite;
+}
+@keyframes halo{0%,100%{transform:scale(.96);opacity:.35}50%{transform:scale(1.04);opacity:.8}}
 .win-card h3{font-family:var(--serif);font-size:28px;color:var(--gold-2);margin-bottom:8px}
 .win-card p{color:var(--muted);line-height:1.55;margin-bottom:18px}
+#btn-win{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;font-weight:700}
 @media(max-width:900px){
-  main,.row2{grid-template-columns:1fr}
+  main,.row2,.board-frame{grid-template-columns:1fr}
+  .levels{grid-template-rows:none;grid-template-columns:repeat(8,1fr);padding:0 0 8px}
+  .levels li{writing-mode:horizontal-tb;transform:none;letter-spacing:.06em;font-size:8px}
   .board{min-height:520px}
   .cell .nm{font-size:9px}
   .cell .sk{display:none}
@@ -164,8 +191,16 @@ button:disabled{opacity:.5;cursor:wait}
   </header>
   <main>
     <section class="board-shell">
-      <div id="board" class="board" aria-label="Игровое поле Лилы"></div>
-      <div id="token" class="token hidden" aria-hidden="true">✦</div>
+      <div class="board-frame">
+        <ol class="levels" aria-hidden="true">
+          <li>Абсолют</li><li>Сатья</li><li>Тапа</li><li>Джана</li>
+          <li>Махар</li><li>Сварга</li><li>Бхувар</li><li>Бху</li>
+        </ol>
+        <div class="board-stage">
+          <div id="board" class="board" aria-label="Игровое поле Лилы"></div>
+          <div id="token" class="token hidden" aria-hidden="true">✦</div>
+        </div>
+      </div>
     </section>
     <aside class="side">
       <div class="row2">
@@ -388,13 +423,15 @@ function setDiceFace(n){
 }
 function buildBoard(){
   const board=$("board"); board.innerHTML="";
-  cellOrder().forEach(n=>{
+  const o=cellOrder();
+  o.forEach(n=>{
     const c=DATA.cells[n-1], el=document.createElement("button");
     el.type="button"; el.className="cell "+LEVEL[Math.floor((n-1)/9)]; el.dataset.n=n;
     if(n===68) el.classList.add("goal");
     el.innerHTML=`<span class="n">${n}</span><span class="nm">${c.name}</span><span class="sk">${c.sk}</span>`;
     if(ARROW[n]){const b=document.createElement("span");b.className="badge up";b.textContent="↑ "+ARROW[n];el.appendChild(b);}
     if(SNAKE[n]){const b=document.createElement("span");b.className="badge dn";b.textContent="↓ "+SNAKE[n];el.appendChild(b);}
+    el.style.animationDelay=(o.indexOf(n)*12)+"ms";
     el.addEventListener("click",()=>showCell(n));
     board.appendChild(el);
   });
@@ -404,9 +441,10 @@ function placeToken(n,instant){
   if(!n||!cell){token.classList.add("hidden");return;}
   token.classList.remove("hidden");
   if(instant) token.style.transition="none";
-  const br=board.getBoundingClientRect(), cr=cell.getBoundingClientRect();
-  token.style.left=(cr.left-br.left+cr.width/2)+"px";
-  token.style.top=(cr.top-br.top+cr.height/2)+"px";
+  const origin=token.offsetParent||board;
+  const or=origin.getBoundingClientRect(), cr=cell.getBoundingClientRect();
+  token.style.left=(cr.left-or.left+cr.width/2)+"px";
+  token.style.top=(cr.top-or.top+cr.height/2)+"px";
   if(instant) requestAnimationFrame(()=>{token.style.transition="";});
 }
 function highlight(){
