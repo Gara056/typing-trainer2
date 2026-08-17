@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лила — игра самопознания</title>
+<style>
+:root{
+  --bg:#090806;--panel:rgba(18,15,12,.78);--panel-2:rgba(28,22,16,.9);
+  --gold:#c9a45c;--gold-2:#f0ddb0;--gold-d:#8a6b2e;--ivory:#f6f0e4;--muted:#b7a894;
+  --line:rgba(201,164,92,.22);--snake:#c45c4a;--arrow:#6faf7a;--glow:rgba(201,164,92,.35);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:"Avenir Next","Segoe UI","Helvetica Neue",ui-sans-serif,sans-serif;
+  --l1:#6e2e28;--l2:#8c4e22;--l3:#9a7a2c;--l4:#2e5c47;--l5:#2a4c6e;--l6:#3c2e6c;--l7:#5a2e5c;--l8:#4a3d22;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  font-family:var(--sans);color:var(--ivory);background:var(--bg);
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(900px 500px at 12% -10%,rgba(201,164,92,.16),transparent 55%),
+    radial-gradient(700px 420px at 110% 8%,rgba(122,64,28,.18),transparent 50%),
+    radial-gradient(800px 600px at 50% 120%,rgba(58,36,18,.4),transparent 55%),
+    repeating-radial-gradient(circle at 20% 20%,rgba(255,255,255,.015) 0 1px,transparent 1px 3px);
+}
+.orb{position:fixed;border-radius:50%;filter:blur(40px);pointer-events:none;z-index:0;animation:drift 18s ease-in-out infinite}
+.orb.a{width:280px;height:280px;left:-40px;top:20%;background:rgba(201,164,92,.12)}
+.orb.b{width:220px;height:220px;right:-30px;bottom:10%;background:rgba(154,90,40,.14);animation-delay:-7s}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(24px,-18px)}}
+.wrap{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:22px 22px 40px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.brand{display:flex;flex-direction:column;gap:4px}
+.kicker{letter-spacing:.34em;text-transform:uppercase;font-size:10px;color:var(--gold);opacity:.85}
+h1{font-family:var(--serif);font-weight:500;font-size:clamp(28px,4vw,42px);letter-spacing:.04em}
+h1 span{color:var(--gold-2);font-style:italic}
+.tag{color:var(--muted);font-size:13px;max-width:420px;line-height:1.5}
+main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.9fr);gap:22px;align-items:start}
+.board-shell{
+  position:relative;padding:18px 18px 18px 16px;border-radius:24px;
+  background:
+    linear-gradient(180deg,rgba(48,38,24,.55),rgba(12,10,8,.94)),
+    repeating-linear-gradient(135deg,rgba(201,164,92,.04) 0 2px,transparent 2px 8px);
+  border:1px solid var(--line);
+  box-shadow:0 40px 90px rgba(0,0,0,.5),inset 0 1px 0 rgba(240,221,176,.16);
+}
+.board-shell::before,.board-shell::after{
+  content:"";position:absolute;width:18px;height:18px;pointer-events:none;
+  border:1px solid var(--gold);opacity:.55;
+}
+.board-shell::before{top:10px;left:10px;border-right:0;border-bottom:0}
+.board-shell::after{right:10px;bottom:10px;border-left:0;border-top:0}
+.board-frame{display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:stretch}
+.levels{list-style:none;display:grid;grid-template-rows:repeat(8,1fr);padding:2px 0;margin:0}
+.levels li{
+  display:flex;align-items:center;justify-content:center;
+  writing-mode:vertical-rl;transform:rotate(180deg);
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);
+  opacity:.72;font-family:var(--serif);
+}
+.board-stage{position:relative}
+.board{position:relative;display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(8,1fr);gap:5px;aspect-ratio:9/8}
+.cell{
+  position:relative;border-radius:8px;padding:6px 6px 8px;cursor:pointer;overflow:hidden;
+  border:1px solid rgba(255,255,255,.06);min-height:0;
+  transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease,filter .25s;
+  animation:cellIn .5s ease both;
+}
+@keyframes cellIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.cell::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.1),transparent 42%);pointer-events:none}
+.cell:hover{transform:translateY(-2px) scale(1.02);z-index:2;box-shadow:0 10px 24px rgba(0,0,0,.35);border-color:rgba(240,221,176,.35)}
+.cell .n{font-family:var(--serif);font-size:11px;color:var(--gold-2);opacity:.9}
+.cell .nm{display:block;margin-top:4px;font-size:10px;line-height:1.2;font-weight:600;letter-spacing:.01em}
+.cell .sk{display:block;margin-top:3px;font-size:9px;color:rgba(246,240,228,.62);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l1{background:linear-gradient(160deg,#7a342c,#1a0c0a)}.l2{background:linear-gradient(160deg,#9a5626,#1c1008)}
+.l3{background:linear-gradient(160deg,#a88630,#1a1408)}.l4{background:linear-gradient(160deg,#32704f,#07140f)}
+.l5{background:linear-gradient(160deg,#2f5a80,#081018)}.l6{background:linear-gradient(160deg,#4a3680,#0c0818)}
+.l7{background:linear-gradient(160deg,#6a3470,#140814)}.l8{background:linear-gradient(160deg,#5a4a28,#120e08)}
+.cell.goal{box-shadow:inset 0 0 0 2px var(--gold),0 0 22px var(--glow);animation:goal 3.2s ease-in-out infinite}
+@keyframes goal{0%,100%{box-shadow:inset 0 0 0 2px var(--gold),0 0 14px var(--glow)}50%{box-shadow:inset 0 0 0 2px var(--gold-2),0 0 28px var(--glow)}}
+.cell.current{box-shadow:inset 0 0 0 2px #fff,0 0 0 1px rgba(255,255,255,.2);animation:pulse 2.4s ease-in-out infinite;z-index:3}
+@keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+.badge{position:absolute;right:5px;top:5px;font-size:9px;font-weight:700;padding:2px 5px;border-radius:999px;letter-spacing:.02em}
+.badge.up{background:rgba(111,175,122,.95);color:#06210c}.badge.dn{background:rgba(196,92,74,.95);color:#2a0906}
+.token{
+  position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;z-index:6;pointer-events:none;
+  display:grid;place-items:center;font-size:15px;color:#3a2a0a;
+  background:radial-gradient(circle at 32% 28%,#fff3c8,#e0b84a 46%,#8d6918);
+  box-shadow:0 0 0 2px rgba(255,244,210,.55),0 0 22px rgba(232,197,90,.75),0 8px 16px rgba(0,0,0,.45);
+  transition:left .5s cubic-bezier(.22,1,.36,1),top .5s cubic-bezier(.22,1,.36,1),opacity .35s,transform .35s;
+}
+.token:not(.hidden){animation:tokenGlow 2.2s ease-in-out infinite}
+@keyframes tokenGlow{0%,100%{box-shadow:0 0 0 2px rgba(255,244,210,.55),0 0 18px rgba(232,197,90,.55),0 8px 16px rgba(0,0,0,.45)}50%{box-shadow:0 0 0 3px rgba(255,244,210,.8),0 0 28px rgba(232,197,90,.9),0 8px 16px rgba(0,0,0,.45)}}
+.token.hidden{opacity:0;transform:scale(.6);visibility:hidden}
+.side{display:flex;flex-direction:column;gap:14px}
+.row2{display:grid;grid-template-columns:1fr 1.15fr;gap:12px}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px 16px 14px;
+  backdrop-filter:blur(16px);box-shadow:0 16px 40px rgba(0,0,0,.28);animation:rise .7s ease both;
+}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card h2{font-family:var(--serif);font-size:15px;font-weight:500;color:var(--gold-2);letter-spacing:.06em;margin-bottom:10px}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase}
+input[type=text]{
+  width:100%;background:rgba(8,6,4,.55);border:1px solid var(--line);color:var(--ivory);
+  border-radius:12px;padding:10px 12px;font:inherit;outline:none;transition:border-color .2s,box-shadow .2s;
+}
+input[type=text]:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,164,92,.15)}
+input[type=text]:disabled{opacity:.72;color:var(--gold-2)}
+#analysis{min-height:180px}
+#analysis-body{font-size:13px;line-height:1.55;color:#ebe4d6}
+#analysis-title{font-family:var(--serif);font-size:20px;margin:2px 0 2px}
+#analysis-sk{color:var(--gold);font-style:italic;font-size:12px;margin-bottom:10px}
+.pill{display:inline-block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);border:1px solid var(--line);padding:3px 7px;border-radius:999px;margin-bottom:8px}
+.sec{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.sec b{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-weight:600}
+.empty{color:var(--muted);font-size:13px}
+.turn{display:flex;gap:16px;align-items:center}
+.dice{
+  width:78px;height:78px;flex:0 0 78px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  padding:12px;border-radius:16px;
+  background:linear-gradient(145deg,#fffaf0,#f0e2c4 42%,#c9a45c 120%);
+  box-shadow:inset 0 1px 0 #fff,inset 0 -6px 10px rgba(138,107,46,.18),0 12px 28px rgba(0,0,0,.4),0 0 0 1px rgba(201,164,92,.45);
+}
+.dice.rolling{animation:roll .5s ease-in-out}
+@keyframes roll{0%{transform:rotate(0) scale(1)}25%{transform:rotate(18deg) scale(1.14)}55%{transform:rotate(-28deg) scale(.9)}100%{transform:rotate(360deg) scale(1)}}
+.pip{width:11px;height:11px;border-radius:50%;background:#1c140c;margin:auto;opacity:0;transform:scale(.6);transition:opacity .12s,transform .12s;box-shadow:inset 0 1px 1px rgba(255,255,255,.25)}
+.pip.on{opacity:1;transform:scale(1)}
+.actions{flex:1;display:flex;flex-direction:column;gap:8px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{
+  font:inherit;cursor:pointer;border:0;border-radius:12px;padding:11px 16px;letter-spacing:.04em;transition:transform .15s,filter .15s,box-shadow .15s;
+}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.5;cursor:wait}
+#btn-roll{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;font-weight:700;box-shadow:0 8px 20px rgba(201,164,92,.28)}
+#btn-roll:hover:not(:disabled){filter:brightness(1.06)}
+#btn-reset{background:transparent;color:var(--muted);border:1px solid var(--line)}
+#status{font-size:13px;color:var(--muted);min-height:36px;line-height:1.4}
+.chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;max-height:140px;overflow:auto;padding-right:4px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:12px;animation:chip .35s ease}
+.chip.up{background:rgba(111,175,122,.18);color:#bfe8c6;border-color:rgba(111,175,122,.4)}
+.chip.dn{background:rgba(196,92,74,.18);color:#f0b4aa;border-color:rgba(196,92,74,.4)}
+.chip.now{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;border:0;font-weight:700}
+.arr{color:var(--muted);opacity:.6}
+@keyframes chip{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#win{
+  position:fixed;inset:0;z-index:20;display:none;place-items:center;background:rgba(6,4,2,.72);backdrop-filter:blur(10px);
+}
+#win.show{display:grid;animation:rise .5s ease}
+.win-card{
+  width:min(440px,92vw);text-align:center;padding:36px 28px;border-radius:24px;position:relative;
+  background:linear-gradient(180deg,#221a12,#120e0a);border:1px solid var(--gold);
+  box-shadow:0 0 80px rgba(201,164,92,.25);
+}
+.win-card::before{
+  content:"";position:absolute;inset:-18px;border-radius:32px;pointer-events:none;
+  border:1px solid rgba(201,164,92,.25);animation:halo 2.8s ease-in-out infinite;
+}
+@keyframes halo{0%,100%{transform:scale(.96);opacity:.35}50%{transform:scale(1.04);opacity:.8}}
+.win-card h3{font-family:var(--serif);font-size:28px;color:var(--gold-2);margin-bottom:8px}
+.win-card p{color:var(--muted);line-height:1.55;margin-bottom:18px}
+#btn-win{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;font-weight:700}
+@media(max-width:900px){
+  main,.row2,.board-frame{grid-template-columns:1fr}
+  .levels{grid-template-rows:none;grid-template-columns:repeat(8,1fr);padding:0 0 8px}
+  .levels li{writing-mode:horizontal-tb;transform:none;letter-spacing:.06em;font-size:8px}
+  .board{min-height:520px}
+  .cell .nm{font-size:9px}
+  .cell .sk{display:none}
+}
+@media(max-width:560px){
+  .wrap{padding:14px}
+  .board{gap:3px;min-height:420px}
+  .cell{padding:4px}
+}
+</style>
+</head>
+<body>
+<div class="orb a"></div><div class="orb b"></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="kicker">Leela · 72</div>
+      <h1>Лила <span>игра самопознания</span></h1>
+    </div>
+    <p class="tag">Сформулируй запрос, брось кубик кармы и читай клетку как зеркало текущего внутреннего процесса.</p>
+  </header>
+  <main>
+    <section class="board-shell">
+      <div class="board-frame">
+        <ol class="levels" aria-hidden="true">
+          <li>Абсолют</li><li>Сатья</li><li>Тапа</li><li>Джана</li>
+          <li>Махар</li><li>Сварга</li><li>Бхувар</li><li>Бху</li>
+        </ol>
+        <div class="board-stage">
+          <div id="board" class="board" aria-label="Игровое поле Лилы"></div>
+          <div id="token" class="token hidden" aria-hidden="true">✦</div>
+        </div>
+      </div>
+    </section>
+    <aside class="side">
+      <div class="row2">
+        <section class="card">
+          <h2>Твой запрос</h2>
+          <label for="query">С чем входишь в игру</label>
+          <input id="query" type="text" maxlength="180" placeholder="Например: зачем я застрял в этом выборе?">
+        </section>
+        <section class="card" id="analysis">
+          <h2>Разбор клетки</h2>
+          <div id="analysis-body"><p class="empty">Кликни клетку или брось кубик — откроется ведическое значение и психологический разбор.</p></div>
+        </section>
+      </div>
+      <section class="card">
+        <h2>Ход</h2>
+        <div class="turn">
+          <div id="dice" class="dice" aria-label="Кубик"></div>
+          <div class="actions">
+            <div class="btns">
+              <button id="btn-roll" type="button">Бросить кубик</button>
+              <button id="btn-reset" type="button">Заново</button>
+            </div>
+            <p id="status">Чтобы войти в игру, выброси 6. До входа фишка вне поля.</p>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Схема твоих ходов</h2>
+        <div id="history" class="chips"><span class="empty">Цепочка появится после первого хода.</span></div>
+      </section>
+    </aside>
+  </main>
+</div>
+<div id="win"><div class="win-card">
+  <div class="kicker">Вайкунтха-лока</div>
+  <h3>Космическое Сознание</h3>
+  <p id="win-text">Ты достиг клетки 68. Игра завершена — запрос прожит до конца пути.</p>
+  <button id="btn-win" type="button">Начать заново</button>
+</div></div>
+<script>
+const DATA={
+cells:[
+{n:1,name:"Рождение",sk:"Джанма",d:"Мир — поле кармы. Сознание не может пребывать без игры: Единое становится многим, и рождение — вход в эту лилу. Игрок принимает правила дхармы и жребий кармы."},
+{n:2,name:"Иллюзия",sk:"Майя",d:"Двойка — повтор Единого, завеса явлений. Всё, что приходит через органы чувств, кажется отдельным «я». Майя держится, пока ум отождествлён с восприятием."},
+{n:3,name:"Гнев",sk:"Кродха",d:"Гнев — неуверенность первого плана. Личный гнев пожирает благие качества и роняет вибрацию. Безличный гнев может жечь зло, но цена высока."},
+{n:4,name:"Жадность",sk:"Лобха",d:"На плане выживания неудовлетворённость смешивается с нуждой — так рождается жадность. Чем больше захвачено, тем сильнее жажда, и пустота растёт."},
+{n:5,name:"Физический план",sk:"Бху-лока",d:"Плотный мир тела, дома, пищи и силы. Здесь отрабатывается мастерство воплощения: семь змей ведут сюда, напоминая вес земного урока."},
+{n:6,name:"Заблуждение",sk:"Моха",d:"Моха — сладкая путаница, когда желаемое принимается за истинное. Игрок теряет ясность и держится за образы, которые уже не питают путь."},
+{n:7,name:"Тщеславие",sk:"Мада",d:"Опьянение собственной значимостью. Успех первого плана превращается в маску, и игрок начинает жить ради отражения в чужих глазах."},
+{n:8,name:"Алчность",sk:"Матсарья",d:"Неутолимое сравнение: чужое благо кажется украденным у себя. Алчность сжимает сердце и возвращает к дефициту первого ряда."},
+{n:9,name:"Чувственный план",sk:"Кама-лока",d:"План желания и чувств. Кама движет творчеством и привязанностью; без различения она приковывает сознание к наслаждению."},
+{n:10,name:"Очищение",sk:"Тапа",d:"Тапа — жар дисциплины. Огонь аскезы выжигает шлаки, поднимая игрока к более тонкому плану. Стрела очищения ведёт вверх."},
+{n:11,name:"Развлечения",sk:"Гандхарва",d:"Мир искусства, игры и красоты. Гандхарвы напоминают: отдых питает, если не становится бегством от дхармы."},
+{n:12,name:"Зависть",sk:"Ирасья",d:"Зависть отравляет радость другого и крадёт собственную силу. Змея спускает игрока туда, где снова учится довольству."},
+{n:13,name:"Ничтожность",sk:"Антарикша",d:"Промежуток, пустота между мирами. Ориентиры теряются; это порог, а не приговор — пространство, где ещё нет формы."},
+{n:14,name:"Астральный план",sk:"Бхувар-лока",d:"План связей и тонких контактов. Здесь встречаются намерения, сны и отношения, ещё не ставшие плотью."},
+{n:15,name:"План фантазии",sk:"Нага-лока",d:"Наги хранят скрытые образы. Фантазия указывает на импульс, который пора воплотить — или отпустить, если он лишь мираж."},
+{n:16,name:"Ревность",sk:"Двеша",d:"Двеша — неприятие и страх потери. Ревность сужает любовь до контроля и бросает вниз, к жадности первого плана."},
+{n:17,name:"Сострадание",sk:"Дайя",d:"Дайя — способность разделить переживание другого без слияния. Сострадание поднимает сознание далеко за пределы личного сюжета."},
+{n:18,name:"План радости",sk:"Харша-лока",d:"Радость как качество бытия, не зависящее от добычи. Харша наполняет, когда игрок перестаёт торговаться с жизнью."},
+{n:19,name:"План кармы",sk:"Карма-лока",d:"Каждое действие сеет следствие. Здесь игрок видит, что реальность отвечает на его волю, а не на жалобы."},
+{n:20,name:"Благотворительность",sk:"Дана",d:"Дана — искусство отдавать без сделки. Дар расширяет канал изобилия и поднимает к плану равновесия."},
+{n:21,name:"Искупление",sk:"Самана-папа",d:"Выравнивание прошлых ошибок. Искупление — не самобичевание, а восстановление баланса кармы сознательным актом."},
+{n:22,name:"План дхармы",sk:"Дхарма-лока",d:"Жизнь в согласии с законом своей природы. Дхарма выпрямляет путь и стрелой возносит к ясному интеллекту."},
+{n:23,name:"Небесный план",sk:"Сварга-лока",d:"План уверенности и светлых плодов. Сварга дарит опору, но напоминает: небеса — станция, не цель."},
+{n:24,name:"Плохая компания",sk:"Ку-санг-лока",d:"Окружение, которое снижает вибрацию. Дурная сангха уводит с пути и змеёй возвращает к тщеславию."},
+{n:25,name:"Хорошая компания",sk:"Су-санг-лока",d:"Присутствие тех, кто держит огонь практики. Благая сангха питает дхарму лучше любой теории."},
+{n:26,name:"Печаль",sk:"Дукха",d:"Боль как учитель. Дукха просит принять задачу воплощения, а не бежать в утешение."},
+{n:27,name:"Самоотверженное служение",sk:"Парамартха",d:"Служение высшей цели, где «я» отступает. Парамартха поднимает к человеческому плану сердца."},
+{n:28,name:"Религиозность",sk:"Судхарма",d:"Истинная религиозность — жизнь из своего закона, а не из формы. Она открывает врата аскезы и преданности."},
+{n:29,name:"Безбожие",sk:"Адхарма",d:"Разрыв с внутренним законом. Адхарма лишает опоры и сбрасывает к заблуждению плотного мира."},
+{n:30,name:"Хорошие тенденции",sk:"Уттама-гати",d:"Благое направление ума. Привычка к свету становится ветром, который несёт дальше без усилия воли."},
+{n:31,name:"План святости",sk:"Якша-лока",d:"План хранителей силы и чистоты. Святость здесь — собранность энергии, ещё не растворённая в любви."},
+{n:32,name:"План равновесия",sk:"Махар-лока",d:"Устойчивость между мирами. Махар — тишина, в которой противоположности перестают рвать сознание."},
+{n:33,name:"План ароматов",sk:"Гандха-лока",d:"Тонкий запах бытия: память, влечение, предчувствие. Гандха учит чувствовать качество пространства."},
+{n:34,name:"План вкуса",sk:"Раса-лока",d:"Раса — вкус переживания. Здесь жизнь пробует себя как искусство, а не как задача."},
+{n:35,name:"Чистилище",sk:"Нарака-лока",d:"Огонь очищения страдания. Нарака пережигает то, что не может идти выше, и готовит ясность."},
+{n:36,name:"Ясность сознания",sk:"Сваччха",d:"Прозрачный ум без мути. Сваччха — вода, в которой видны и дно, и небо."},
+{n:37,name:"Знание",sk:"Джняна",d:"Живое знание, а не информация. Джняна рассекает неведение и стрелой ведёт к блаженству."},
+{n:38,name:"Прана-лока",sk:"Прана-лока",d:"Восходящее дыхание жизни. Прана наполняет, когда внимание соединено с потоком, а не с тревогой."},
+{n:39,name:"Апана-лока",sk:"Апана-лока",d:"Нисходящая сила освобождения и завершения. Апана учит отпускать то, чей срок истёк."},
+{n:40,name:"Вьяна-лока",sk:"Вьяна-лока",d:"Распределённая жизненная сила. Вьяна собирает разрозненные части в целостность тела-ума."},
+{n:41,name:"Человеческий план",sk:"Джана-лока",d:"План зрелого человечества: ответственность, речь, смысл. Здесь душа учится быть человеком полностью."},
+{n:42,name:"План Агни",sk:"Агни-лока",d:"Огонь преображения. Агни сжигает сомнение и делает действие чистым подношением."},
+{n:43,name:"Рождение человека",sk:"Манушья-джанма",d:"Драгоценность человеческого рождения. Сознание получает инструмент для освобождения — ум, речь и выбор."},
+{n:44,name:"Неведение",sk:"Авидья",d:"Корень страдания: незнание своей природы. Авидья змеёй возвращает к ничтожности промежутка."},
+{n:45,name:"Правильное знание",sk:"Сувидья",d:"Знание, выровненное с истиной. Сувидья поднимает к плану космического блага."},
+{n:46,name:"Различение",sk:"Вивека",d:"Способность отделять вечное от преходящего. Вивека — стрела к счастью, которое не зависит от случая."},
+{n:47,name:"План нейтральности",sk:"Сарасвати",d:"Поток знания без пристрастия. Сарасвати держит ум в белизне, где нет нужды побеждать."},
+{n:48,name:"Солнечный план",sk:"Ямуна",d:"Солнечная воля и ясность действия. Ямуна греет путь, не сжигая берега."},
+{n:49,name:"Лунный план",sk:"Ганга",d:"Охлаждающая благодать чувства. Ганга очищает память и несёт преданность."},
+{n:50,name:"План аскетизма",sk:"Тапа-лока",d:"Жар устойчивой практики. Тапа-лока — обитель тех, кто держит огонь, не требуя плода."},
+{n:51,name:"Земля",sk:"Притхиви",d:"Стихия земли: опора, плодородие, терпение. Даже у вершины путь помнит почву."},
+{n:52,name:"План насилия",sk:"Химса-лока",d:"Сила, обращённая против жизни. Химса сбрасывает к чистилищу, где ярость пережигается."},
+{n:53,name:"План жидкостей",sk:"Джала-лока",d:"Вода — адаптация и течение. Джала учит менять форму, не теряя сути."},
+{n:54,name:"Духовная преданность",sk:"Бхакти-лока",d:"Бхакти — прямая стрела к космическому сознанию. Преданность растворяет «я» быстрее знания."},
+{n:55,name:"Эгоизм",sk:"Ахамкара",d:"Делатель «я» у самого порога венца. Ахамкара змеёй бросает в гнев — туда, где эго ещё кричит."},
+{n:56,name:"Изначальные вибрации",sk:"Омкара",d:"Звук Ом — семя творения. Здесь слышен тон, из которого плетутся миры."},
+{n:57,name:"План газов",sk:"Вайю-лока",d:"Воздух, движение, свобода формы. Вайю развязывает узлы, но сам ещё не покой."},
+{n:58,name:"План сияния",sk:"Теджа-лока",d:"Сияние внутреннего света. Теджас освещает путь, не ослепляя того, кто смотрит прямо."},
+{n:59,name:"План реальности",sk:"Сатья-лока",d:"План истины. Сатья устойчива, но всё ещё станция перед освобождением."},
+{n:60,name:"Позитивный интеллект",sk:"Субуддхи",d:"Ясный ум, служащий дхарме. Субуддхи различает без жестокости и ведёт к свету."},
+{n:61,name:"Негативный интеллект",sk:"Дурбуддхи",d:"Ум, обращённый против истины. Дурбуддхи остроумен и пуст — змея в ничтожность."},
+{n:62,name:"Счастье",sk:"Сукха",d:"Счастье как естественное состояние различения. Сукха не хватает мир, она в нём покоится."},
+{n:63,name:"Тамас",sk:"Тамас",d:"Инерция и тьма у порога венца. Тамас роняет в майю: неведение снова кажется уютом."},
+{n:64,name:"Феноменальный план",sk:"Пракрити-лока",d:"Природа как игра качеств. Пракрити показывает, что формы — одежды сознания, не его суть."},
+{n:65,name:"Внутреннее пространство",sk:"Уранта-лока",d:"Простор внутри. Уранта — небо сердца, где объекты теряют власть."},
+{n:66,name:"План блаженства",sk:"Ананда-лока",d:"Блаженство как природа сознания. Ананда не добывается — в него вспоминают."},
+{n:67,name:"План космического блага",sk:"Рудра-лока",d:"Разрушение ложного во имя целого. Рудра освобождает, срезая привязанность к форме."},
+{n:68,name:"Космическое Сознание",sk:"Вайкунтха-лока",d:"Цель игры. Возвращение к целостности, где игрок и игра — одно, а запрос растворяется в источнике."},
+{n:69,name:"План Абсолюта",sk:"Брахма-лока",d:"Творящий покой за пределами цели. Брахма-лока — величие, которое ещё может стать гордыней творца."},
+{n:70,name:"Саттва-гуна",sk:"Саттва-гуна",d:"Качество ясности и гармонии. Саттва возвышает, но и она — одежда, не сам Дух."},
+{n:71,name:"Раджо-гуна",sk:"Раджо-гуна",d:"Качество движения и страсти. Раджас творит миры и не даёт остановиться в покое."},
+{n:72,name:"Тама-гуна",sk:"Тама-гуна",d:"Качество инерции. За пределом поля тамас змеёй возвращает к земле — чтобы встать и идти снова."}
+],
+psych:{
+"1":"Новое «я» входит в сюжет. Запрос рождается там, где эго соглашается стать персонажем собственной драмы.",
+"2":"Проекция и расщепление: мир кажется внешним, хотя это экран психики. Отделите сигнал от истории о нём.",
+"3":"Гнев маскирует беспомощность. Тень бьёт, когда граница нарушена, а прямой запрос стыдно произнести.",
+"4":"Привязанность к объекту закрывает дыру в самоценности. Контроль через накопление не насыщает.",
+"5":"Тело и быт как якорь идентичности. Пока плотный план не признан, высшие инсайты остаются фантазией.",
+"6":"Когнитивное искажение: желаемое выдаётся за факт. Заблуждение — защита от тревоги неизвестности.",
+"7":"Нарциссическая подпитка. Самооценка держится на аплодисментах и рушится без зеркала.",
+"8":"Зависть — отказ горевать о своём дефиците. Сравнение подменяет развитие.",
+"9":"Желание как регулятор тревоги. Чувственность может быть контактом или диссоциацией через стимул.",
+"10":"Очищение — снятие защит, которые уже жмут. Дисциплина здесь служит психике, а не наказанию.",
+"11":"Игра и эстетика восстанавливают психический тонус. Проверьте, отдых это или избегание конфликта.",
+"12":"Зависть указывает на вытесненное желание. Вместо обесценивания другого — верните себе право хотеть.",
+"13":"Дереализация порога перемен. Пустота — пауза идентичности, не доказательство ничтожества.",
+"14":"Поле переноса: связи несут незавершённые фигуры прошлого. Смотрите, кого вы встречаете в другом.",
+"15":"Фантазия компенсирует запрет на действие. Образ просит моста в реальность или честного отпускания.",
+"16":"Ревность — страх потери объекта, на котором держится самость. Контроль маскирует стыд.",
+"17":"Эмпатия без слияния. Сострадание лечит изоляцию эго, если границы остаются живыми.",
+"18":"Радость как регуляция, не награда. Психика расширяется, когда не надо заслуживать хорошее.",
+"19":"Локус контроля возвращается. Карма здесь — ответственность за выбор, а не вина.",
+"20":"Даяние размыкает удержание. Отдать — проверить, что ценность не равна запасу.",
+"21":"Искупление завершает гештальт вины. Ремонт отношений важнее самобичевания.",
+"22":"Выравнивание с внутренней нормой. Дхарма — не мораль извне, а конгруэнтность себе.",
+"23":"Уверенность после верного действия. Не зафиксируйтесь в «небесах» как в новой защите.",
+"24":"Интроекты токсичной группы. Окружение держит старый сценарий — выйдите из поля стыда.",
+"25":"Зрелая привязанность. Рядом есть кто-то, с кем психика растёт, а не сжимается.",
+"26":"Печаль договаривает потерю. Горе — работа, без которой энергия застревает.",
+"27":"Служение выводит из эгоцентризма. Смысл появляется, когда «я» перестаёт быть единственным героем.",
+"28":"Живая форма веры как контейнер для хаоса. Ритуал держит, пока не стал клеткой.",
+"29":"Цинизм как защита от разочарования. Безбожие часто — обида на идеал, который не спас.",
+"30":"Новый нейронный путь: повторение благого становится характером, не усилием.",
+"31":"Святость как собранность, не превосходство. Сила без теплоты легко каменеет.",
+"32":"Регуляция полюсов. Равновесие — не серость, а способность не срываться в крайность.",
+"33":"Телесная память атмосферы. Запах-якорь возвращает аффект быстрее слов.",
+"34":"Эстетический интеллект чувства. Вкус — способ узнать, что для вас живое.",
+"35":"Контейнирование боли. Чистилище — безопасный жар, если не превращается в мазохизм.",
+"36":"Наблюдающее эго. Ясность появляется, когда аффект больше не захватывает поле целиком.",
+"37":"Инсайт, меняющий каркас. Знание здесь — реструктуризация схемы, не эрудиция.",
+"38":"Активация. Прана — энергия, которую тревога крадёт в гиперконтроль.",
+"39":"Завершение и выведение. Психика нуждается в праве закончить и выдохнуть.",
+"40":"Интеграция частей. Разрозненные субличности собираются в одно «я».",
+"41":"Взрослая позиция. Человеческий план — ответственность без инфантильного всемогущества.",
+"42":"Трансформирующий аффект. Огонь гнева или страсти становится топливом изменения.",
+"43":"Принятие конечности и дара воплощения. Человечность — не дефект духа.",
+"44":"Слепое пятно. Неведение защищает от знания, которое разрушит удобную идентичность.",
+"45":"Конгруэнтная карта мира. Правильное знание стыкует факты, тело и ценность.",
+"46":"Метапознание: вижу, что вечно, а что — привычка. Различение снижает импульсивность.",
+"47":"Нейтральность как свобода от поляризации. Не холод — пауза между стимулом и реакцией.",
+"48":"Солярная агентность. Воля без тирании: действовать, не подавляя чувство.",
+"49":"Лунная регуляция. Разрешение быть мягким, помнить и принадлежать.",
+"50":"Аскеза как граница. Отказ служит фокусу, пока не стал сухой анорексией души.",
+"51":"Заземление. После взлётов психика просит почву, ритм, плоть.",
+"52":"Агрессия без ментализации. Насилие — непереваренный аффект, сброшенный вовне.",
+"53":"Текучесть. Вода учит адаптации без потери ядра идентичности.",
+"54":"Преданность большему, чем эго. Бхакти растворяет контроль через любовь, не через сдачу.",
+"55":"Ахамкара у финиша: «я достиг». Гордыня возвращает в гнев, потому что сепарация снова стала богом.",
+"56":"Контакт с дословесным. Вибрация — тело до нарратива.",
+"57":"Свобода от формы. Воздух лечит слияние, но может стать избеганием близости.",
+"58":"Самосияние без нужды в зрителе. Свет больше не арендуется у внешнего объекта.",
+"59":"Встреча с тем, что есть. Реальность вместо любимой теории о себе.",
+"60":"Интеллект на службе жизни. Мысль соединяет, а не кромсает.",
+"61":"Рационализация тени. Ум оправдывает откол от правды и зовёт это ясностью.",
+"62":"Эвтюмия: спокойное счастье без маниакального подъёма. Его не надо удерживать.",
+"63":"Замирание. Тамас — депрессивная защита от следующего шага свободы.",
+"64":"Наблюдение игры качеств. Вы не равны настроению, которое сейчас на сцене.",
+"65":"Внутреннее пространство расширяет контейнер «я». Объекты теряют гипноз.",
+"66":"Анаклитическая полнота: достаточно быть. Блаженство — не награда за работу над собой.",
+"67":"Священный отказ. Разрушение ложной самости ради целого — горе и свобода сразу.",
+"68":"Интеграция. Запрос больше не держит отдельного героя: свидетель и путь совпали.",
+"69":"Величие творца. Риск — снова стать особенным, не растворённым.",
+"70":"Светлая гуна как комфорт чистоты. Даже гармония может стать новой идентичностью.",
+"71":"Гипервозбуждение становления. Раджас не даёт собрать плод тишины.",
+"72":"Инерция после перелёта цели. Возврат к земле — не проигрыш, а повторное воплощение урока."
+},
+arrows:[[10,23],[17,69],[20,32],[22,60],[27,41],[28,50],[37,66],[45,67],[46,62],[54,68]],
+snakes:[[12,8],[16,4],[24,7],[29,6],[44,9],[52,35],[55,3],[61,13],[63,2],[72,51]]
+};
+const PIP={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
+const ARROW=Object.fromEntries(DATA.arrows);
+const SNAKE=Object.fromEntries(DATA.snakes);
+const LEVEL=["l1","l2","l3","l4","l5","l6","l7","l8"];
+const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0};
+const $=id=>document.getElementById(id);
+function cellOrder(){
+  const o=[];
+  for(let r=0;r<8;r++){
+    const start=(7-r)*9+1, nums=[];
+    for(let i=0;i<9;i++) nums.push(start+i);
+    if((r+1)%2===1) nums.reverse();
+    o.push(...nums);
+  }
+  return o;
+}
+function buildDice(){
+  const d=$("dice"); d.innerHTML="";
+  for(let i=1;i<=9;i++){const s=document.createElement("span");s.className="pip";s.dataset.i=String(i);d.appendChild(s);}
+}
+function setDiceFace(n){
+  const d=$("dice");
+  d.dataset.face=n?String(n):"";
+  [...d.querySelectorAll(".pip")].forEach(p=>{
+    const on=n && PIP[n].includes(+p.dataset.i);
+    p.classList.toggle("on",!!on);
+  });
+}
+function buildBoard(){
+  const board=$("board"); board.innerHTML="";
+  const o=cellOrder();
+  o.forEach(n=>{
+    const c=DATA.cells[n-1], el=document.createElement("button");
+    el.type="button"; el.className="cell "+LEVEL[Math.floor((n-1)/9)]; el.dataset.n=n;
+    if(n===68) el.classList.add("goal");
+    el.innerHTML=`<span class="n">${n}</span><span class="nm">${c.name}</span><span class="sk">${c.sk}</span>`;
+    if(ARROW[n]){const b=document.createElement("span");b.className="badge up";b.textContent="↑ "+ARROW[n];el.appendChild(b);}
+    if(SNAKE[n]){const b=document.createElement("span");b.className="badge dn";b.textContent="↓ "+SNAKE[n];el.appendChild(b);}
+    el.style.animationDelay=(o.indexOf(n)*12)+"ms";
+    el.addEventListener("click",()=>showCell(n));
+    board.appendChild(el);
+  });
+}
+function placeToken(n,instant){
+  const token=$("token"), board=$("board"), cell=board.querySelector(`[data-n="${n}"]`);
+  if(!n||!cell){token.classList.add("hidden");return;}
+  token.classList.remove("hidden");
+  if(instant) token.style.transition="none";
+  const origin=token.offsetParent||board;
+  const or=origin.getBoundingClientRect(), cr=cell.getBoundingClientRect();
+  token.style.left=(cr.left-or.left+cr.width/2)+"px";
+  token.style.top=(cr.top-or.top+cr.height/2)+"px";
+  if(instant) requestAnimationFrame(()=>{token.style.transition="";});
+}
+function highlight(){
+  document.querySelectorAll(".cell.current").forEach(el=>el.classList.remove("current"));
+  if(state.pos){const el=document.querySelector(`.cell[data-n="${state.pos}"]`); if(el) el.classList.add("current");}
+}
+function showCell(n){
+  const c=DATA.cells[n-1]; if(!c) return;
+  state.look=n;
+  $("analysis-body").innerHTML=`
+    <span class="pill">клетка ${c.n}</span>
+    <div id="analysis-title">${c.name}</div>
+    <div id="analysis-sk">${c.sk}</div>
+    <div class="sec"><b>Ведическое значение</b><p id="analysis-vedic">${c.d}</p></div>
+    <div class="sec"><b>Психологический разбор</b><p id="analysis-psych">${DATA.psych[String(n)]}</p></div>`;
+}
+function renderHistory(){
+  const box=$("history");
+  if(!state.history.length){box.innerHTML='<span class="empty">Цепочка появится после первого хода.</span>';return;}
+  box.innerHTML=state.history.map((h,i)=>{
+    const last=i===state.history.length-1;
+    let cls="chip"+(last?" now":h.kind==="arrow"?" up":h.kind==="snake"?" dn":"");
+    const mark=h.kind==="arrow"?"↑":h.kind==="snake"?"↓":"";
+    const arrow=i<state.history.length-1?'<span class="arr">→</span>':"";
+    return `<span class="${cls}">${mark?mark+" ":""}${h.n}</span>${arrow}`;
+  }).join("");
+  box.scrollTop=box.scrollHeight;
+}
+function lockQuery(){
+  const q=$("query");
+  if(!state.queryLocked){state.queryLocked=true;q.disabled=true;}
+}
+function applyRoll(r){
+  const out={r,pos:state.pos,entered:state.pos>0,moved:false,won:state.won,via:null};
+  if(state.won) return out;
+  if(state.pos===0){
+    if(r!==6){
+      $("status").textContent="Выпало "+r+". Для входа нужна шестёрка — фишка ещё вне поля.";
+      return out;
+    }
+    state.pos=6;
+    state.history.push({n:6,kind:"enter"});
+    out.entered=true; out.moved=true; out.pos=6;
+    $("status").textContent="Шестёрка. Вход на клетку 6 — Заблуждение.";
+  }else{
+    let next=state.pos+r;
+    if(next>72) next=72;
+    state.pos=next;
+    state.history.push({n:next,kind:"move"});
+    out.moved=true; out.pos=next;
+    $("status").textContent="Выпало "+r+". Ход на клетку "+next+" — "+DATA.cells[next-1].name+".";
+  }
+  const here=state.pos;
+  if(ARROW[here]){
+    state.pos=ARROW[here];
+    state.history.push({n:state.pos,kind:"arrow",from:here});
+    out.via="arrow"; out.pos=state.pos;
+    $("status").textContent="Стрела: подъём с "+here+" на "+state.pos+" — "+DATA.cells[state.pos-1].name+".";
+  }else if(SNAKE[here]){
+    state.pos=SNAKE[here];
+    state.history.push({n:state.pos,kind:"snake",from:here});
+    out.via="snake"; out.pos=state.pos;
+    $("status").textContent="Змея: спуск с "+here+" на "+state.pos+" — "+DATA.cells[state.pos-1].name+".";
+  }
+  if(state.pos===68){
+    state.won=true; out.won=true;
+    $("status").textContent="Клетка 68 — Космическое Сознание. Путь завершён.";
+    const q=$("query").value.trim();
+    $("win-text").textContent=q
+      ?("Запрос «"+q+"» дошёл до клетки 68. Космическое Сознание — не победа над полем, а совпадение с источником.")
+      :"Ты достиг клетки 68. Игра завершена — сознание вернулось к целостности.";
+    $("win").classList.add("show");
+    $("btn-roll").disabled=true;
+  }
+  highlight(); placeToken(state.pos); showCell(state.pos); renderHistory();
+  out.pos=state.pos; return out;
+}
+function roll(){
+  if(state.rolling||state.won) return;
+  lockQuery();
+  state.rolling=true;
+  const btn=$("btn-roll"), dice=$("dice");
+  btn.disabled=true; dice.classList.add("rolling");
+  const final=1+Math.floor(Math.random()*6);
+  let i=0;
+  const iv=setInterval(()=>{
+    setDiceFace(1+Math.floor(Math.random()*6));
+    i++;
+    if(i>=9){
+      clearInterval(iv);
+      setDiceFace(final);
+      dice.classList.remove("rolling");
+      applyRoll(final);
+      state.rolling=false;
+      if(!state.won) btn.disabled=false;
+    }
+  },55);
+}
+function resetGame(){
+  state.pos=0; state.history=[]; state.won=false; state.rolling=false; state.queryLocked=false; state.look=0;
+  const q=$("query"); q.disabled=false; q.value="";
+  $("btn-roll").disabled=false;
+  $("win").classList.remove("show");
+  $("status").textContent="Чтобы войти в игру, выброси 6. До входа фишка вне поля.";
+  $("analysis-body").innerHTML='<p class="empty">Кликни клетку или брось кубик — откроется ведическое значение и психологический разбор.</p>';
+  $("history").innerHTML='<span class="empty">Цепочка появится после первого хода.</span>';
+  setDiceFace(0);
+  $("token").classList.add("hidden");
+  highlight();
+}
+function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked};}
+function init(){
+  buildDice(); buildBoard(); setDiceFace(0);
+  $("btn-roll").addEventListener("click",roll);
+  $("btn-reset").addEventListener("click",resetGame);
+  $("btn-win").addEventListener("click",resetGame);
+  window.addEventListener("resize",()=>{if(state.pos) placeToken(state.pos,true);});
+}
+init();
+window.DATA=DATA; window.applyRoll=applyRoll; window.roll=roll; window.resetGame=resetGame;
+window.showCell=showCell; window.setDiceFace=setDiceFace; window.getState=getState; window.PIP=PIP;
+</script>
+</body>
+</html>

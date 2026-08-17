@@ -1,0 +1,11 @@
+{
+  "name": "leela",
+  "private": true,
+  "description": "Лила — игра самопознания (веб-версия)",
+  "scripts": {
+    "test": "node test/leela.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}
