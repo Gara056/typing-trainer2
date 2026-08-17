@@ -173,7 +173,29 @@ function test(name, fn) {
     await wait(750);
     assert.strictEqual(dice.classList.contains("rolling"), false);
     assert.strictEqual(w.getState().rolling, false);
-    if (!w.getState().won) assert.strictEqual(btn.disabled, false);
+    if (!w.getState().won && !w.getState().mustRead) {
+      assert.strictEqual(btn.disabled, false);
+    } else {
+      assert.strictEqual(btn.disabled, true);
+    }
+  });
+
+  await test("finale report follows the actual path and the query", () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    for (let i = 0; i < 800 && !w.getState().won; i++) {
+      w.applyRoll(1 + Math.floor(Math.random() * 6));
+    }
+    assert.ok(w.getState().won);
+    const finale = w.document.getElementById("finale").textContent;
+    assert.ok(finale.includes("мой выбор"));
+    assert.ok(finale.includes("Заблуждение"));
+    assert.ok(finale.includes("Космическое Сознание"));
+    assert.ok(finale.includes("Ход за ходом") || finale.includes("клетка 68"));
+    assert.ok(w.document.getElementById("win").classList.contains("show"));
+    const names = [...new Set(w.getState().history.map((h) => w.DATA.cells[h.n - 1].name))];
+    assert.ok(names.every((name) => finale.includes(name)));
   });
 
   await test("reset hides token, clears history, empties dice, unlocks query", () => {
