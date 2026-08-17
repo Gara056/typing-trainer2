@@ -178,7 +178,8 @@ button:disabled{opacity:.5;cursor:wait}
 .win-card h4 i{font-size:13px;color:var(--gold);font-weight:400}
 .finale-step{border-top:1px solid var(--line);padding:14px 0 6px}
 #finale{margin-top:8px}
-#btn-win{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;font-weight:700;display:block;margin:18px auto 0}
+#btn-html,#btn-txt,#btn-share{background:transparent;color:var(--gold-2);border:1px solid var(--gold);margin:6px 6px 0 0}
+.export-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px}
 @media(max-width:900px){
   main,.board-frame{grid-template-columns:1fr}
   .levels{grid-template-rows:none;grid-template-columns:repeat(8,1fr);padding:0 0 8px}
@@ -284,6 +285,11 @@ button:disabled{opacity:.5;cursor:wait}
   <h3>Космическое Сознание</h3>
   <p id="win-text">Ты достиг клетки 68. Ниже — полный разбор партии.</p>
   <div id="finale"></div>
+  <div class="export-row">
+    <button id="btn-html" type="button">Скачать разбор HTML</button>
+    <button id="btn-txt" type="button">Скачать текст</button>
+    <button id="btn-share" type="button">Поделиться</button>
+  </div>
   <button id="btn-win" type="button">Начать заново</button>
 </div></div>
 <script>
@@ -292,7 +298,9 @@ const PIP={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
 const ARROW=Object.fromEntries(DATA.arrows);
 const SNAKE=Object.fromEntries(DATA.snakes);
 const LEVEL=["l1","l2","l3","l4","l5","l6","l7","l8"];
+const STORE="leela.game.v1";
 const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false};
+let hydrating=false;
 const $=id=>document.getElementById(id);
 function cellOrder(){
   const o=[];
@@ -395,6 +403,134 @@ function liveCell(){
   state.mustRead=false;
   $("btn-live").classList.remove("show");
   $("btn-roll").disabled=false;
+  saveGame();
+}
+function snapshot(){
+  return {
+    v:1,
+    pos:state.pos,
+    history:state.history,
+    won:state.won,
+    query:$("query").value,
+    queryLocked:state.queryLocked,
+    mustRead:state.mustRead,
+    dice:+($("dice").dataset.face||0),
+    savedAt:Date.now()
+  };
+}
+function saveGame(){
+  if(hydrating) return;
+  try{
+    const snap=snapshot();
+    if(!snap.history.length && !snap.query && !snap.won) localStorage.removeItem(STORE);
+    else localStorage.setItem(STORE, JSON.stringify(snap));
+  }catch(e){}
+}
+function loadGame(){
+  let raw;
+  try{ raw=localStorage.getItem(STORE); }catch(e){ return false; }
+  if(!raw) return false;
+  let s;
+  try{ s=JSON.parse(raw); }catch(e){ return false; }
+  if(!s||s.v!==1||!Array.isArray(s.history)) return false;
+  hydrating=true;
+  try{
+    state.pos=s.pos||0;
+    state.history=s.history;
+    state.won=!!s.won;
+    state.queryLocked=!!s.queryLocked;
+    state.mustRead=!!s.mustRead && !state.won;
+    state.rolling=false;
+    $("query").value=s.query||"";
+    $("query").disabled=state.queryLocked;
+    setDiceFace(s.dice||0);
+    renderHistory();
+    if(state.pos){ highlight(); showCell(state.pos); }
+    if(state.won){
+      $("btn-roll").disabled=true;
+      $("btn-live").classList.remove("show");
+      openFinale();
+    }else if(state.mustRead){
+      requireRead();
+    }else{
+      $("btn-roll").disabled=false;
+      $("btn-live").classList.remove("show");
+    }
+    const c=state.pos?DATA.cells[state.pos-1]:null;
+    $("status").textContent=state.won
+      ?"Партия восстановлена. Разбор клетки 68 на месте."
+      :state.pos
+        ?"Партия восстановлена. Ты на клетке "+state.pos+(c?" — "+c.name:"")+"."
+        :(s.query?"Запрос сохранён. Чтобы войти, выброси 6.":"Чтобы войти в игру, выброси 6.");
+  }finally{
+    hydrating=false;
+  }
+  requestAnimationFrame(()=>{ if(state.pos) placeToken(state.pos,true); });
+  return true;
+}
+function fileStamp(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function buildFinaleText(){
+  const tmp=document.createElement("div");
+  tmp.innerHTML=buildFinale();
+  const title="Лила — разбор партии\nЗапрос: "+queryText()+"\nДата: "+new Date().toLocaleString("ru-RU")+"\n\n";
+  return title+(tmp.textContent||tmp.innerText||"").replace(/\n{3,}/g,"\n\n").trim()+"\n";
+}
+function buildFinaleDocument(){
+  const q=esc(queryText());
+  return `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Лила — разбор: ${q}</title>
+<style>
+body{margin:0;background:#090806;color:#f6f0e4;font:16px/1.65 Palatino,"Iowan Old Style",Georgia,serif;padding:28px 18px 48px}
+.wrap{max-width:720px;margin:0 auto}
+h1{font-weight:500;color:#f0ddb0}
+.kicker{letter-spacing:.28em;text-transform:uppercase;font-size:11px;color:#c9a45c}
+.sec{margin-top:18px;padding-top:14px;border-top:1px solid rgba(201,164,92,.25)}
+.sec b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#b7a894;margin-bottom:6px}
+.qthread{color:#f0ddb0;font-style:italic}
+.finale-step{border-top:1px solid rgba(201,164,92,.18);padding:14px 0}
+.pill{display:inline-block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c;border:1px solid rgba(201,164,92,.3);padding:3px 8px;border-radius:999px}
+.ask{padding-left:18px;color:#d8cbb8}
+h4{margin:8px 0;font-weight:500;color:#f0ddb0}
+h4 i{color:#c9a45c;font-size:14px}
+</style></head><body><div class="wrap">
+<div class="kicker">Лила · разбор партии</div>
+<h1>Космическое Сознание</h1>
+<p>Сохранено ${esc(new Date().toLocaleString("ru-RU"))}. Файл открывается без интернета.</p>
+${buildFinale()}
+</div></body></html>`;
+}
+function downloadBlob(content,mime,filename){
+  const blob=new Blob([content],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=filename; a.rel="noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function exportFinale(kind){
+  const name="lila-razbor-"+fileStamp();
+  if(kind==="txt") downloadBlob(buildFinaleText(),"text/plain;charset=utf-8",name+".txt");
+  else downloadBlob(buildFinaleDocument(),"text/html;charset=utf-8",name+".html");
+}
+async function shareFinale(){
+  const name="lila-razbor-"+fileStamp()+".html";
+  const html=buildFinaleDocument();
+  try{
+    const file=new File([html],name,{type:"text/html"});
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({title:"Лила — разбор",files:[file]});
+      return;
+    }
+    if(navigator.share){
+      await navigator.share({title:"Лила — разбор",text:buildFinaleText()});
+      return;
+    }
+  }catch(e){
+    if(e&&e.name==="AbortError") return;
+  }
+  exportFinale("html");
 }
 function buildFinale(){
   const q=queryText();
@@ -473,6 +609,7 @@ function applyRoll(r){
     state.pos=6;
     state.history.push({n:6,kind:"enter"});
     out.entered=true; out.moved=true; out.pos=6;
+    lockQuery();
     $("status").textContent="Шестёрка. Вход на клетку 6 — Заблуждение. Проживи текст, затем продолжай.";
   }else{
     let next=state.pos+r;
@@ -480,6 +617,7 @@ function applyRoll(r){
     state.pos=next;
     state.history.push({n:next,kind:"move"});
     out.moved=true; out.pos=next;
+    lockQuery();
     $("status").textContent="Выпало "+r+". Ход на клетку "+next+" — "+DATA.cells[next-1].name+".";
   }
   const here=state.pos;
@@ -505,6 +643,7 @@ function applyRoll(r){
     requireRead();
   }
   highlight(); placeToken(state.pos); showCell(state.pos,transit); renderHistory();
+  saveGame();
   out.pos=state.pos; return out;
 }
 function roll(){
@@ -541,23 +680,43 @@ function resetGame(){
   setDiceFace(0);
   $("token").classList.add("hidden");
   highlight();
+  try{ localStorage.removeItem(STORE); }catch(e){}
 }
 function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked,mustRead:state.mustRead};}
 function init(){
   buildDice(); buildBoard(); setDiceFace(0);
   $("btn-roll").addEventListener("click",roll);
   $("btn-live").addEventListener("click",liveCell);
-  $("btn-reset").addEventListener("click",resetGame);
-  $("btn-win").addEventListener("click",resetGame);
+  $("btn-reset").addEventListener("click",()=>{
+    if(state.history.length||state.queryLocked){
+      if(!confirm("Сбросить партию? Сохранённый ход будет удалён.")) return;
+    }
+    resetGame();
+  });
+  $("btn-win").addEventListener("click",()=>{
+    if(!confirm("Начать новую партию? Скачай разбор, если он ещё нужен.")) return;
+    resetGame();
+  });
+  $("btn-html").addEventListener("click",()=>exportFinale("html"));
+  $("btn-txt").addEventListener("click",()=>exportFinale("txt"));
+  $("btn-share").addEventListener("click",()=>shareFinale());
   $("btn-rules").addEventListener("click",()=>$("rules").classList.add("show"));
   $("btn-rules-close").addEventListener("click",()=>$("rules").classList.remove("show"));
   $("rules").addEventListener("click",e=>{if(e.target.id==="rules") $("rules").classList.remove("show");});
+  $("query").addEventListener("input",saveGame);
   window.addEventListener("resize",()=>{if(state.pos) placeToken(state.pos,true);});
+  window.addEventListener("pageshow",()=>{if(state.pos) placeToken(state.pos,true);});
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") saveGame(); });
+  window.addEventListener("pagehide",saveGame);
+  window.addEventListener("beforeunload",saveGame);
+  loadGame();
 }
 init();
 window.DATA=DATA; window.applyRoll=applyRoll; window.roll=roll; window.resetGame=resetGame;
 window.showCell=showCell; window.setDiceFace=setDiceFace; window.getState=getState; window.PIP=PIP;
 window.buildFinale=buildFinale; window.liveCell=liveCell;
+window.saveGame=saveGame; window.loadGame=loadGame; window.STORE=STORE;
+window.buildFinaleDocument=buildFinaleDocument; window.buildFinaleText=buildFinaleText;
 </script>
 </body>
 </html>

@@ -10,7 +10,7 @@ const html = fs.readFileSync(path.join(__dirname, "..", "leela.html"), "utf8");
 function load() {
   const dom = new JSDOM(html, {
     runScripts: "dangerously",
-    url: "https://leela.local/leela.html",
+    url: "https://leela.local/leela.html?t=" + Math.random(),
     pretendToBeVisual: true,
   });
   const { window } = dom;
@@ -215,6 +215,40 @@ function test(name, fn) {
     assert.strictEqual(w.document.getElementById("query").value, "");
     assert.ok(w.document.getElementById("history").textContent.includes("Цепочка"));
     assert.strictEqual(w.document.querySelector(".cell.current"), null);
+  });
+
+  await test("unfinished game restores from localStorage", () => {
+    const w = load();
+    w.document.getElementById("query").value = "долгий путь";
+    w.applyRoll(6);
+    w.applyRoll(2);
+    const pos = w.getState().pos;
+    const n = w.getState().history.length;
+    const dumped = w.localStorage.getItem(w.STORE);
+    assert.ok(dumped);
+    w.resetGame();
+    assert.strictEqual(w.getState().pos, 0);
+    w.localStorage.setItem(w.STORE, dumped);
+    assert.ok(w.loadGame());
+    assert.strictEqual(w.getState().pos, pos);
+    assert.strictEqual(w.getState().history.length, n);
+    assert.strictEqual(w.document.getElementById("query").value, "долгий путь");
+    assert.strictEqual(w.document.getElementById("query").disabled, true);
+  });
+
+  await test("finale can be packed into a standalone HTML file", () => {
+    const w = load();
+    w.document.getElementById("query").value = "сохранить разбор";
+    w.applyRoll(6);
+    for (let i = 0; i < 800 && !w.getState().won; i++) {
+      w.applyRoll(1 + Math.floor(Math.random() * 6));
+    }
+    assert.ok(w.getState().won);
+    const doc = w.buildFinaleDocument();
+    assert.ok(doc.includes("<!DOCTYPE html>"));
+    assert.ok(doc.includes("сохранить разбор"));
+    assert.ok(doc.includes("Космическое Сознание"));
+    assert.ok(w.buildFinaleText().includes("сохранить разбор"));
   });
 
   if (process.exitCode) {
