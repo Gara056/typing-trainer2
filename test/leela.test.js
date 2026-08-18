@@ -248,6 +248,7 @@ function test(name, fn) {
     assert.ok(card.includes("зеркало"));
     assert.ok(card.includes("вернуться на клетку 68"));
     assert.ok(card.includes("69"));
+    assert.ok(card.includes("камень") || card.includes("стихи"));
   });
 
   await test("guide answers about a cell, the query, and why games can be short", () => {
@@ -286,6 +287,34 @@ function test(name, fn) {
     assert.ok(w.loadGame());
     assert.ok(w.document.getElementById("chat-log").textContent.includes("стрела с 17"));
     assert.ok(w.getState().chat.length >= 2);
+  });
+
+  await test("elemental charm sits on cell 68 without blocking the board", () => {
+    const w = load();
+    const charm = w.document.getElementById("charm");
+    assert.ok(charm);
+    assert.ok(w.document.querySelector('.cell[data-n="68"]').contains(charm));
+    assert.strictEqual(w.getComputedStyle(charm).pointerEvents, "none");
+    assert.ok(!charm.classList.contains("show"));
+    w.setCharm("earth");
+    assert.strictEqual(w.getState().charm, "earth");
+    assert.ok(charm.classList.contains("show"));
+    assert.ok(charm.querySelector("svg"));
+    assert.ok(w.document.getElementById("charm-hint").textContent.includes("Земля"));
+    w.document.querySelector('.cell[data-n="68"]').click();
+    assert.ok(w.document.getElementById("analysis-body").textContent.includes("Космическое Сознание"));
+    w.applyRoll(6);
+    assert.strictEqual(w.document.querySelector('#charms button[data-charm="water"]').disabled, true);
+    const dumped = w.localStorage.getItem(w.STORE);
+    assert.ok(dumped.includes("earth"));
+    w.resetGame();
+    assert.strictEqual(w.getState().charm, "");
+    assert.ok(!w.document.getElementById("charm").classList.contains("show"));
+    w.localStorage.setItem(w.STORE, dumped);
+    assert.ok(w.loadGame());
+    assert.strictEqual(w.getState().charm, "earth");
+    assert.ok(w.document.getElementById("charm").classList.contains("show"));
+    assert.ok(w.guideAsk("что значит талисман").includes("Земля"));
   });
 
   await test("finale can be packed into a standalone HTML file", () => {

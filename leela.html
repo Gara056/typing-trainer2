@@ -85,6 +85,26 @@ main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.9fr);gap:
 @keyframes pulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
 .badge{position:absolute;right:5px;top:5px;font-size:9px;font-weight:700;padding:2px 5px;border-radius:999px;letter-spacing:.02em}
 .badge.up{background:rgba(111,175,122,.95);color:#06210c}.badge.dn{background:rgba(196,92,74,.95);color:#2a0906}
+.charm{
+  position:absolute;right:5px;bottom:4px;width:15px;height:15px;z-index:1;
+  pointer-events:none;opacity:0;visibility:hidden;
+  display:grid;place-items:center;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));
+  transition:opacity .25s;
+}
+.charm svg{width:100%;height:100%;display:block}
+.charm.show{opacity:.7;visibility:visible}
+.cell.goal:hover .charm.show{opacity:.92}
+.cell.current .charm.show{opacity:.38}
+.charms{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+.charms button{
+  width:42px;height:42px;padding:0;border-radius:12px;display:grid;place-items:center;
+  background:rgba(8,6,4,.45);border:1px solid var(--line);color:var(--ivory);
+}
+.charms button svg{width:22px;height:22px}
+.charms button:hover:not(:disabled){border-color:var(--gold);background:rgba(201,164,92,.12)}
+.charms button.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold);background:rgba(201,164,92,.18)}
+.charms button:disabled{opacity:.55;cursor:default}
+.charm-hint{font-size:12px;color:var(--muted);line-height:1.4;margin:0}
 .token{
   position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;z-index:6;pointer-events:none;
   display:grid;place-items:center;font-size:15px;color:#3a2a0a;
@@ -236,6 +256,9 @@ button:disabled{opacity:.5;cursor:wait}
         <h2>Твой запрос</h2>
         <label for="query">С чем входишь в игру</label>
         <input id="query" type="text" maxlength="180" placeholder="Например: зачем я застрял в этом выборе?">
+        <label for="charms" style="margin-top:12px">Талисман на клетку 68</label>
+        <div id="charms" class="charms" role="group" aria-label="Талисман стихии"></div>
+        <p class="charm-hint" id="charm-hint">Необязательно. Знак ляжет в угол цели и не закроет поле.</p>
       </section>
       <section class="card" id="analysis">
         <h2>Разбор клетки</h2>
@@ -282,7 +305,7 @@ button:disabled{opacity:.5;cursor:wait}
   <p>Лила — не гонка до клетки 68. Один ты или в круге — не важно: сначала выдох, удобная поза, живой запрос. Кубик — жребий кармы (каждое число 1–6 равновероятно). Смысл хода — прочесть клетку как зеркало, а не «пройти уровень».</p>
 
   <h4><span class="n">1</span>Подготовка</h4>
-  <p>Расслабься, сядь устойчиво. В живой игре на клетку 68 кладут кольцо или талисман — якорь цели, к которой возвращаются. Здесь эту роль берёт запрос над доской, а 68 уже светится как венец поля.</p>
+  <p>Расслабься, сядь устойчиво. В живой игре на клетку 68 кладут кольцо или талисман — якорь цели, к которой возвращаются. Здесь можно выбрать знак стихии: камень, капля, лампа, перо или кристалл. Он ляжет в угол клетки 68 и не закроет поле — это не фишка, а напоминание, куда идёшь. Запрос над доской остаётся нитью партии.</p>
 
   <h4><span class="n">2</span>Вход</h4>
   <p>Для тех, кто играет давно, порог входа — дело тонкое: кто-то очищает ум, кто-то настраивается на добро, кто-то входит с вопросом. Бросай кубик, пока не выпадет <b>6</b> — только шестёрка открывает поле. Пока 6 нет, ты ещё не в игре: это не поломка, а ожидание рождения.</p>
@@ -327,7 +350,14 @@ const ARROW=Object.fromEntries(DATA.arrows);
 const SNAKE=Object.fromEntries(DATA.snakes);
 const LEVEL=["l1","l2","l3","l4","l5","l6","l7","l8"];
 const STORE="leela.game.v1";
-const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[]};
+const CHARMS={
+  earth:{id:"earth",name:"Камень",tattva:"Земля",hint:"Притхиви — опора и срок",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="14" rx="8" ry="5.2" fill="#b8955e"/><ellipse cx="12" cy="12.2" rx="7.6" ry="4.8" fill="#c9a45c"/><ellipse cx="9.2" cy="11.2" rx="1.8" ry="1" fill="#f0ddb0" opacity=".55"/></svg>'},
+  water:{id:"water",name:"Капля",tattva:"Вода",hint:"Джала — течение без потери сути",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s-6.6 7.6-6.6 11.6A6.6 6.6 0 0 0 12 21.2a6.6 6.6 0 0 0 6.6-6.6C18.6 10.6 12 3 12 3z" fill="#7eabc0"/><path d="M10.2 13.6c.2-1.8 1.3-3.4 2.4-4.8" fill="none" stroke="#eaf4f8" stroke-width="1.3" stroke-linecap="round"/></svg>'},
+  fire:{id:"fire",name:"Лампа",tattva:"Огонь",hint:"Агни — жар, который превращает",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.2 13.8c0-3.2 1.8-6 3.8-8.4 2 2.4 3.8 5.2 3.8 8.4a3.8 3.8 0 1 1-7.6 0z" fill="#e08a3c"/><path d="M12 9.2c.3 1.2 1.4 2.1 1.4 3.6" fill="none" stroke="#f6e2a8" stroke-width="1.2" stroke-linecap="round"/><rect x="7.4" y="18" width="9.2" height="2.6" rx=".9" fill="#c9a45c"/></svg>'},
+  air:{id:"air",name:"Перо",tattva:"Воздух",hint:"Вайю — дыхание и простор",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 16.2c5.6-.8 9.6-3.6 13.6-10.4" fill="none" stroke="#d8cbb8" stroke-width="1.5" stroke-linecap="round"/><path d="M8.2 15.2l2.8-3.8M11 14.2l2.8-4.4M13.8 12.4l2.6-3.6" fill="none" stroke="#d8cbb8" stroke-width="1.05" stroke-linecap="round"/></svg>'},
+  ether:{id:"ether",name:"Кристалл",tattva:"Эфир",hint:"Акаша — пространство цели",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.4l5.8 7.6L12 21.6 6.2 10z" fill="#b9a6d4"/><path d="M12 2.4l5.8 7.6H6.2z" fill="#e4daf2"/><path d="M8.2 10h7.6L12 21.6z" fill="#9a86bc"/></svg>'}
+};
+const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:""};
 const GUIDE_HELLO="Я проводник поля. Отвечаю по клеткам, запросу и твоему пути — без внешней сети, чтобы партия оставалась целой. Спроси про клетку, стрелу, змею или смысл.";
 let hydrating=false;
 const $=id=>document.getElementById(id);
@@ -359,8 +389,13 @@ function buildBoard(){
   o.forEach(n=>{
     const c=DATA.cells[n-1], el=document.createElement("button");
     el.type="button"; el.className="cell "+LEVEL[Math.floor((n-1)/9)]; el.dataset.n=n;
-    if(n===68) el.classList.add("goal");
     el.innerHTML=`<span class="n">${n}</span><span class="nm">${c.name}</span><span class="sk">${c.sk}</span>`;
+    if(n===68){
+      el.classList.add("goal");
+      const ch=document.createElement("span");
+      ch.id="charm"; ch.className="charm"; ch.setAttribute("aria-hidden","true");
+      el.appendChild(ch);
+    }
     if(ARROW[n]){const b=document.createElement("span");b.className="badge up";b.textContent="↑ "+ARROW[n];el.appendChild(b);}
     if(SNAKE[n]){const b=document.createElement("span");b.className="badge dn";b.textContent="↓ "+SNAKE[n];el.appendChild(b);}
     el.style.animationDelay=(o.indexOf(n)*12)+"ms";
@@ -421,6 +456,57 @@ function renderHistory(){
 function lockQuery(){
   const q=$("query");
   if(!state.queryLocked){state.queryLocked=true;q.disabled=true;}
+  applyCharm();
+}
+function buildCharms(){
+  const box=$("charms"); if(!box) return;
+  box.innerHTML="";
+  Object.keys(CHARMS).forEach(id=>{
+    const c=CHARMS[id], b=document.createElement("button");
+    b.type="button"; b.dataset.charm=id;
+    b.title=c.tattva+" — "+c.name+". "+c.hint;
+    b.setAttribute("aria-label",c.tattva+" — "+c.name);
+    b.innerHTML=c.svg;
+    b.addEventListener("click",()=>{
+      if(state.queryLocked) return;
+      setCharm(state.charm===id?"":id);
+    });
+    box.appendChild(b);
+  });
+}
+function applyCharm(){
+  const el=$("charm"), box=$("charms"), hint=$("charm-hint");
+  const c=CHARMS[state.charm];
+  if(el){
+    if(c){
+      el.innerHTML=c.svg;
+      el.classList.add("show");
+      el.title=c.tattva+" — "+c.name;
+    }else{
+      el.innerHTML="";
+      el.classList.remove("show");
+      el.removeAttribute("title");
+    }
+  }
+  if(box){
+    [...box.querySelectorAll("button")].forEach(b=>{
+      const on=b.dataset.charm===state.charm;
+      b.classList.toggle("on",on);
+      b.setAttribute("aria-pressed",on?"true":"false");
+      b.disabled=!!state.queryLocked;
+    });
+  }
+  if(hint){
+    hint.textContent=c
+      ? c.tattva+" («"+c.name+"») лежит в углу клетки 68 — якорь цели, не фишка."
+      : "Необязательно. Знак ляжет в угол цели и не закроет поле.";
+  }
+}
+function setCharm(id){
+  state.charm=CHARMS[id]?id:"";
+  applyCharm();
+  saveGame();
+  return state.charm;
 }
 function requireRead(){
   state.mustRead=true;
@@ -499,7 +585,12 @@ function guideAsk(raw){
     return "Победа — только клетка 68. Партия кажется короткой, когда выпадает стрела 54→68 (бхакти) или 17→69 (сострадание). Это не «чит», а закон поля: живое сердце и преданность в традиции Лилы — кратчайшие дороги. Длинный путь тоже послание: запрос просит пройти узлы, а не добежать.";
   }
   if(/зме|стрел|правил|как игра|кубик|шестёрк|побед|смысл игр/.test(ql)&&!cell){
-    return "Семь опор. Подготовка: выдох и запрос вместо талисмана на 68. Вход только с 6. Шестёрка ведёт от «Рождения» на клетку 6 «Заблуждение». Стрела поднимает к острию, змея — к хвосту (эгоизм в гнев, бхакти в 68). Повторы — непрожитый урок: читай комментарий клетки. Цель — вернуться на 68; 69–71 не освобождение, 72 сажает на 51. Записывай ходы — в цепочке виден узор жизни. После хода нажми «Прожил».";
+    return "Семь опор. Подготовка: выдох, запрос и знак стихии в углу клетки 68. Вход только с 6. Шестёрка ведёт от «Рождения» на клетку 6 «Заблуждение». Стрела поднимает к острию, змея — к хвосту (эгоизм в гнев, бхакти в 68). Повторы — непрожитый урок: читай комментарий клетки. Цель — вернуться на 68; 69–71 не освобождение, 72 сажает на 51. Записывай ходы — в цепочке виден узор жизни. После хода нажми «Прожил».";
+  }
+  if(/талисман|стихи|камень|капл|ламп|перо|кристалл|якорь/.test(ql)){
+    const c=CHARMS[state.charm];
+    if(!c) return "Талисман ещё не выбран. Это не фишка: знак стихии ляжет в угол клетки 68 и будет ждать возвращения. Камень — земля, капля — вода, лампа — огонь, перо — воздух, кристалл — эфир.";
+    return "Твой якорь на 68: "+c.tattva+" («"+c.name+"»). "+c.hint+". Он не ходит по полю — ты возвращаешься к нему. Пока партия идёт, знак напоминает, куда путь, а не чем играть.";
   }
   const focus=cell||((aboutHere&&look)?look:null);
   if(focus){
@@ -542,6 +633,7 @@ function snapshot(){
     mustRead:state.mustRead,
     dice:+($("dice").dataset.face||0),
     chat:state.chat.slice(-40),
+    charm:state.charm||"",
     savedAt:Date.now()
   };
 }
@@ -549,7 +641,7 @@ function saveGame(){
   if(hydrating) return;
   try{
     const snap=snapshot();
-    if(!snap.history.length && !snap.query && !snap.won && !(snap.chat&&snap.chat.length)) localStorage.removeItem(STORE);
+    if(!snap.history.length && !snap.query && !snap.won && !(snap.chat&&snap.chat.length) && !snap.charm) localStorage.removeItem(STORE);
     else localStorage.setItem(STORE, JSON.stringify(snap));
   }catch(e){}
 }
@@ -569,11 +661,13 @@ function loadGame(){
     state.mustRead=!!s.mustRead && !state.won;
     state.rolling=false;
     state.chat=Array.isArray(s.chat)?s.chat.filter(m=>m&&(m.role==="me"||m.role==="bot")&&typeof m.text==="string").slice(-40):[];
+    state.charm=CHARMS[s.charm]?s.charm:"";
     $("query").value=s.query||"";
     $("query").disabled=state.queryLocked;
     setDiceFace(s.dice||0);
     renderHistory();
     renderChat();
+    applyCharm();
     if(state.pos){ highlight(); showCell(state.pos); }
     if(state.won){
       $("btn-roll").disabled=true;
@@ -669,6 +763,8 @@ function buildFinale(){
   const unique=[...new Set(hist.map(h=>h.n))];
   const diceMoves=hist.filter(h=>h.kind==="move"||h.kind==="enter").length;
   let arc=`Запрос «${q}» вошёл через клетку 6 «Заблуждение» и закрылся на 68 «Космическое Сознание». В цепочке ${hist.length} состояний: ${diceMoves} ходов кубика, ${arrows.length} стрел, ${snakes.length} змей. `;
+  const charm=CHARMS[state.charm];
+  if(charm) arc+=`На 68 ждал талисман: ${charm.tattva} («${charm.name}») — якорь, к которому путь вернулся. `;
   if(arrows.length) arc+=`Подъёмы — ресурсы, которыми поле сократило путь: ${arrows.map(h=>DATA.cells[h.from-1].name+" → "+DATA.cells[h.n-1].name).join("; ")}. `;
   else arc+="Стрел не было: запрос просил идти шагами, без схлопывания. ";
   if(snakes.length) arc+=`Спуски — узлы, без которых ответ был бы фальшивым: ${snakes.map(h=>DATA.cells[h.from-1].name+" → "+DATA.cells[h.n-1].name).join("; ")}. `;
@@ -797,7 +893,7 @@ function roll(){
   },55);
 }
 function resetGame(){
-  state.pos=0; state.history=[]; state.won=false; state.rolling=false; state.queryLocked=false; state.look=0; state.mustRead=false; state.chat=[];
+  state.pos=0; state.history=[]; state.won=false; state.rolling=false; state.queryLocked=false; state.look=0; state.mustRead=false; state.chat=[]; state.charm="";
   const q=$("query"); q.disabled=false; q.value="";
   $("btn-roll").disabled=false;
   $("btn-live").classList.remove("show");
@@ -810,15 +906,16 @@ function resetGame(){
   $("token").classList.add("hidden");
   highlight();
   renderChat();
+  applyCharm();
   try{ localStorage.removeItem(STORE); }catch(e){}
 }
-function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked,mustRead:state.mustRead,chat:state.chat.slice()};}
+function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked,mustRead:state.mustRead,chat:state.chat.slice(),charm:state.charm};}
 function init(){
-  buildDice(); buildBoard(); setDiceFace(0);
+  buildDice(); buildBoard(); buildCharms(); applyCharm(); setDiceFace(0);
   $("btn-roll").addEventListener("click",roll);
   $("btn-live").addEventListener("click",liveCell);
   $("btn-reset").addEventListener("click",()=>{
-    if(state.history.length||state.queryLocked){
+    if(state.history.length||state.queryLocked||state.charm){
       if(!confirm("Сбросить партию? Сохранённый ход будет удалён.")) return;
     }
     resetGame();
@@ -852,6 +949,7 @@ window.buildFinale=buildFinale; window.liveCell=liveCell;
 window.saveGame=saveGame; window.loadGame=loadGame; window.STORE=STORE;
 window.buildFinaleDocument=buildFinaleDocument; window.buildFinaleText=buildFinaleText;
 window.guideAsk=guideAsk; window.sendGuide=sendGuide;
+window.setCharm=setCharm; window.CHARMS=CHARMS;
 </script>
 </body>
 </html>
