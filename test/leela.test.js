@@ -317,6 +317,38 @@ function test(name, fn) {
     assert.ok(w.guideAsk("что значит талисман").includes("Земля"));
   });
 
+  await test("DeepSeek uses the player's key and game context, falls back locally", async () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    const ctx = w.buildGuideContext("клетка 6");
+    assert.ok(ctx.includes("мой выбор"));
+    assert.ok(ctx.includes("Заблуждение"));
+    assert.strictEqual(w.getAiKey(), "");
+
+    let sent;
+    w.fetch = async (url, opts) => {
+      sent = { url, opts };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: "Зеркало мохи к запросу." } }] }),
+      };
+    };
+    w.setAiKey("sk-test-leela");
+    await w.sendGuide("что говорит эта клетка?");
+    assert.ok(sent.url.includes("api.deepseek.com"));
+    assert.ok(sent.opts.headers.Authorization.includes("sk-test-leela"));
+    const body = JSON.parse(sent.opts.body);
+    assert.ok(body.messages[1].content.includes("мой выбор"));
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("Зеркало мохи"));
+    assert.ok(!w.localStorage.getItem(w.STORE).includes("sk-test-leela"));
+
+    w.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+    await w.sendGuide("как играть?");
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("локальный проводник"));
+  });
+
   await test("finale can be packed into a standalone HTML file", () => {
     const w = load();
     w.document.getElementById("query").value = "сохранить разбор";

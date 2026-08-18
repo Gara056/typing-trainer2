@@ -123,11 +123,11 @@ main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.9fr);gap:
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .card h2{font-family:var(--serif);font-size:15px;font-weight:500;color:var(--gold-2);letter-spacing:.06em;margin-bottom:10px}
 label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase}
-input[type=text]{
+input[type=text],input[type=password]{
   width:100%;background:rgba(8,6,4,.55);border:1px solid var(--line);color:var(--ivory);
   border-radius:12px;padding:10px 12px;font:inherit;outline:none;transition:border-color .2s,box-shadow .2s;
 }
-input[type=text]:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,164,92,.15)}
+input[type=text]:focus,input[type=password]:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,164,92,.15)}
 input[type=text]:disabled{opacity:.72;color:var(--gold-2)}
 #analysis{min-height:280px}
 #analysis-body{font-size:14px;line-height:1.65;color:#ebe4d6;max-height:min(52vh,560px);overflow:auto;padding-right:6px}
@@ -150,6 +150,13 @@ input[type=text]:disabled{opacity:.72;color:var(--gold-2)}
 .chat-form button{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;font-weight:700;padding:10px 14px}
 .hints{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .hints button{background:transparent;color:var(--muted);border:1px solid var(--line);padding:6px 10px;font-size:11px;letter-spacing:.02em}
+.ai-box{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.ai-box summary{cursor:pointer;color:var(--gold-2);font-size:13px;list-style:none}
+.ai-box summary::-webkit-details-marker{display:none}
+.ai-box .ai-row{display:flex;gap:8px;margin-top:8px}
+.ai-box .ai-row input{flex:1}
+.ai-box .ai-row button{background:transparent;color:var(--gold-2);border:1px solid var(--line);padding:10px 12px;font-size:12px}
+.ai-status{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45}
 #rules{position:fixed;inset:0;z-index:21;display:none;place-items:center;background:rgba(6,4,2,.72);backdrop-filter:blur(10px)}
 #rules.show{display:grid}
 .rules-card{width:min(640px,92vw);max-height:86vh;overflow:auto;padding:28px 24px;border-radius:22px;background:linear-gradient(180deg,#221a12,#120e0a);border:1px solid var(--gold);line-height:1.6;font-size:14px;color:#ebe4d6}
@@ -284,7 +291,7 @@ button:disabled{opacity:.5;cursor:wait}
       </section>
       <section class="card" id="guide">
         <h2>Проводник</h2>
-        <p class="empty" id="guide-note">Спроси про клетку, стрелу, змею или как это связано с запросом. Ответы строятся по полю и твоей партии — без сети.</p>
+        <p class="empty" id="guide-note">Спроси про клетку, стрелу, змею или как это связано с запросом. Без ключа отвечает локальный проводник. Своим ключом DeepSeek можно углубить разбор — ключ живёт только в этом браузере.</p>
         <div class="hints">
           <button type="button" data-q="Что эта клетка говорит моему запросу?">Эта клетка и запрос</button>
           <button type="button" data-q="Как читать мой путь?">Мой путь</button>
@@ -295,6 +302,15 @@ button:disabled{opacity:.5;cursor:wait}
           <input id="chat-input" type="text" maxlength="400" placeholder="Спроси, например: что значит стрела с 17?" autocomplete="off">
           <button type="submit">Спросить</button>
         </form>
+        <details class="ai-box" id="ai-box">
+          <summary>Подключить DeepSeek</summary>
+          <p class="charm-hint" style="margin-top:8px">Бесплатный чат на deepseek.com — это сайт, его нельзя встроить. Для проводника нужен API-ключ с <b>platform.deepseek.com</b> (часто есть стартовый кредит, дальше — оплата по токенам). Ключ не уходит на наш сервер и не сохраняется в партии.</p>
+          <div class="ai-row">
+            <input id="ai-key" type="password" maxlength="200" placeholder="sk-…" autocomplete="off" spellcheck="false">
+            <button type="button" id="btn-ai-save">Сохранить</button>
+          </div>
+          <p class="ai-status" id="ai-status">Сейчас: локальный проводник.</p>
+        </details>
       </section>
     </aside>
   </main>
@@ -350,6 +366,8 @@ const ARROW=Object.fromEntries(DATA.arrows);
 const SNAKE=Object.fromEntries(DATA.snakes);
 const LEVEL=["l1","l2","l3","l4","l5","l6","l7","l8"];
 const STORE="leela.game.v1";
+const AI_STORE="leela.ai.v1";
+const AI_THINK="Думаю по полю…";
 const CHARMS={
   earth:{id:"earth",name:"Камень",tattva:"Земля",hint:"Притхиви — опора и срок",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="14" rx="8" ry="5.2" fill="#b8955e"/><ellipse cx="12" cy="12.2" rx="7.6" ry="4.8" fill="#c9a45c"/><ellipse cx="9.2" cy="11.2" rx="1.8" ry="1" fill="#f0ddb0" opacity=".55"/></svg>'},
   water:{id:"water",name:"Капля",tattva:"Вода",hint:"Джала — течение без потери сути",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s-6.6 7.6-6.6 11.6A6.6 6.6 0 0 0 12 21.2a6.6 6.6 0 0 0 6.6-6.6C18.6 10.6 12 3 12 3z" fill="#7eabc0"/><path d="M10.2 13.6c.2-1.8 1.3-3.4 2.4-4.8" fill="none" stroke="#eaf4f8" stroke-width="1.3" stroke-linecap="round"/></svg>'},
@@ -611,16 +629,113 @@ function guideAsk(raw){
   }
   return "Пока ты не на поле. Брось 6, чтобы войти, или спроси: «правила», «запрос», «стрелы», либо назови клетку — например 54 или бхакти.";
 }
+function getAiKey(){
+  try{
+    const s=JSON.parse(localStorage.getItem(AI_STORE)||"{}");
+    return String(s.key||"").trim();
+  }catch(e){ return ""; }
+}
+function setAiKey(key){
+  const k=String(key||"").trim();
+  try{
+    if(!k) localStorage.removeItem(AI_STORE);
+    else localStorage.setItem(AI_STORE, JSON.stringify({key:k, savedAt:Date.now()}));
+  }catch(e){}
+  paintAiStatus();
+  return !!k;
+}
+function paintAiStatus(){
+  const el=$("ai-status"), input=$("ai-key");
+  const on=!!getAiKey();
+  if(el) el.textContent=on
+    ?"DeepSeek включён. Ключ в этом браузере. Партия по-прежнему читается локально, модель только углубляет ответ."
+    :"Сейчас: локальный проводник. Вставь ключ, если хочешь живой разбор.";
+  if(input && !input.value && on) input.placeholder="ключ сохранён · введи новый, чтобы заменить";
+}
+function cellBrief(c){
+  if(!c) return "";
+  const extra=DATA.psych[String(c.n)]||"";
+  const qs=(c.q||[]).join(" / ");
+  return "Клетка "+c.n+" «"+c.name+"» ("+c.sk+"). "+c.d+" Психология: "+extra+(qs?" Вопросы: "+qs:"");
+}
+function buildGuideContext(question){
+  const q=($("query")&&$("query").value||"").trim();
+  const here=state.pos?DATA.cells[state.pos-1]:null;
+  const look=state.look?DATA.cells[state.look-1]:null;
+  const named=findCellRef(String(question||"").toLowerCase());
+  const charm=CHARMS[state.charm];
+  const parts=[
+    "Запрос игрока: "+(q||"(не сформулирован)"),
+    "Позиция: "+(here?here.n+" «"+here.name+"»":"вне поля, ждёт 6"),
+    "Путь: "+(pathLine()||"ещё не начался"),
+    charm?"Талисман на 68: "+charm.tattva+" («"+charm.name+"»)":"Талисман не выбран",
+    "Правила: вход только с 6 на клетку 6 «Заблуждение»; победа только на 68; 69–71 не финиш; 72 змея на 51. Стрелы: "+DATA.arrows.map(a=>a[0]+"→"+a[1]).join(", ")+". Змеи: "+DATA.snakes.map(a=>a[0]+"→"+a[1]).join(", ")+"."
+  ];
+  if(named) parts.push("Упомянутая клетка:\n"+cellBrief(named));
+  else if(here) parts.push("Текущая клетка:\n"+cellBrief(here));
+  if(look && (!here || look.n!==here.n) && (!named || look.n!==named.n)) parts.push("Открытая клетка:\n"+cellBrief(look));
+  return parts.join("\n");
+}
+async function askDeepSeek(question){
+  const key=getAiKey();
+  if(!key) throw new Error("нет ключа");
+  const history=state.chat.filter(m=>m.text!==AI_THINK).slice(-8).map(m=>({role:m.role==="me"?"user":"assistant",content:m.text}));
+  const body={
+    model:"deepseek-chat",
+    temperature:0.7,
+    max_tokens:700,
+    messages:[
+      {role:"system",content:"Ты проводник трансформационной игры Лила (самопознание, поле Хариша Джохари). Говори по-русски, тепло и точно, без гуру-позы и без диагнозов. Не выдумывай стрелы, змеи и номера клеток — опирайся только на переданный контекст партии. Клетка — зеркало запроса, не предсказание. Победа только на 68. Короткие партии из-за стрел 54→68 и 17→69 — закон поля, не баг. Ответ: 1–3 коротких абзаца, в конце один живой вопрос игроку."},
+      {role:"user",content:"Контекст партии:\n"+buildGuideContext(question)+"\n\nВопрос игрока: "+question}
+    ]
+  };
+  const res=await fetch("https://api.deepseek.com/chat/completions",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+    body:JSON.stringify(body)
+  });
+  if(res.status===401) throw new Error("ключ не принят");
+  if(res.status===402) throw new Error("на счёте DeepSeek нет средств");
+  if(!res.ok) throw new Error("ответ "+res.status);
+  const data=await res.json();
+  const text=(data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content||"").trim();
+  if(!text) throw new Error("пустой ответ");
+  return text;
+}
 function sendGuide(text){
   const q=String(text||($("chat-input")&&$("chat-input").value)||"").trim();
-  if(!q) return "";
-  const answer=guideAsk(q);
-  state.chat.push({role:"me",text:q},{role:"bot",text:answer});
-  if(state.chat.length>40) state.chat=state.chat.slice(-40);
+  if(!q) return Promise.resolve("");
   if($("chat-input")) $("chat-input").value="";
+  state.chat.push({role:"me",text:q});
+  if(!getAiKey()){
+    const answer=guideAsk(q);
+    state.chat.push({role:"bot",text:answer});
+    if(state.chat.length>40) state.chat=state.chat.slice(-40);
+    renderChat();
+    saveGame();
+    return Promise.resolve(answer);
+  }
+  state.chat.push({role:"bot",text:AI_THINK});
   renderChat();
   saveGame();
-  return answer;
+  return askDeepSeek(q).then(answer=>{
+    const last=state.chat[state.chat.length-1];
+    if(last&&last.role==="bot") last.text=answer;
+    else state.chat.push({role:"bot",text:answer});
+    if(state.chat.length>40) state.chat=state.chat.slice(-40);
+    renderChat();
+    saveGame();
+    return answer;
+  }).catch(err=>{
+    const fallback=guideAsk(q);
+    const msg=fallback+"\n\nDeepSeek не ответил ("+(err&&err.message?err.message:"сеть")+"). Сработал локальный проводник.";
+    const last=state.chat[state.chat.length-1];
+    if(last&&last.role==="bot") last.text=msg;
+    else state.chat.push({role:"bot",text:msg});
+    renderChat();
+    saveGame();
+    return msg;
+  });
 }
 function snapshot(){
   return {
@@ -935,6 +1050,15 @@ function init(){
   document.querySelectorAll("#guide .hints [data-q]").forEach(b=>{
     b.addEventListener("click",()=>sendGuide(b.dataset.q));
   });
+  $("btn-ai-save").addEventListener("click",()=>{
+    const v=$("ai-key").value.trim();
+    setAiKey(v);
+    $("ai-key").value="";
+  });
+  $("ai-key").addEventListener("keydown",e=>{
+    if(e.key==="Enter"){ e.preventDefault(); $("btn-ai-save").click(); }
+  });
+  paintAiStatus();
   window.addEventListener("resize",()=>{if(state.pos) placeToken(state.pos,true);});
   window.addEventListener("pageshow",()=>{if(state.pos) placeToken(state.pos,true);});
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") saveGame(); });
@@ -950,6 +1074,8 @@ window.saveGame=saveGame; window.loadGame=loadGame; window.STORE=STORE;
 window.buildFinaleDocument=buildFinaleDocument; window.buildFinaleText=buildFinaleText;
 window.guideAsk=guideAsk; window.sendGuide=sendGuide;
 window.setCharm=setCharm; window.CHARMS=CHARMS;
+window.getAiKey=getAiKey; window.setAiKey=setAiKey; window.askDeepSeek=askDeepSeek;
+window.buildGuideContext=buildGuideContext; window.AI_STORE=AI_STORE;
 </script>
 </body>
 </html>
