@@ -236,6 +236,54 @@ function test(name, fn) {
     assert.strictEqual(w.document.getElementById("query").disabled, true);
   });
 
+  await test("rules modal is titled Правила игры and speaks about meaning", () => {
+    const w = load();
+    const btn = w.document.getElementById("btn-rules");
+    assert.ok(btn.textContent.includes("Правила"));
+    const card = w.document.querySelector(".rules-card").textContent;
+    assert.ok(card.includes("Правила игры"));
+    assert.ok(card.includes("Смысл, не финиш"));
+    assert.ok(card.includes("зеркало"));
+  });
+
+  await test("guide answers about a cell, the query, and why games can be short", () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    const cell = w.guideAsk("что значит клетка 54");
+    assert.ok(cell.includes("54"));
+    assert.ok(/бхакти/i.test(cell));
+    assert.ok(cell.includes("мой выбор"));
+    const named = w.guideAsk("бхакти");
+    assert.ok(named.includes("54"));
+    const why = w.guideAsk("Почему партия может закончиться быстро?");
+    assert.ok(why.includes("54"));
+    assert.ok(why.includes("68"));
+    const rel = w.guideAsk("Что эта клетка говорит моему запросу?");
+    assert.ok(rel.includes("Заблуждение") || rel.includes("мой выбор"));
+    w.sendGuide("как читать мой путь?");
+    const log = w.document.getElementById("chat-log").textContent;
+    assert.ok(log.includes("как читать мой путь?"));
+    assert.ok(log.includes("Заблуждение"));
+    assert.ok(w.getState().chat.length >= 2);
+  });
+
+  await test("guide chat restores with the game", () => {
+    const w = load();
+    w.document.getElementById("query").value = "долгий путь";
+    w.applyRoll(6);
+    w.sendGuide("что значит стрела с 17?");
+    const dumped = w.localStorage.getItem(w.STORE);
+    assert.ok(dumped);
+    assert.ok(dumped.includes("стрела с 17"));
+    w.resetGame();
+    assert.strictEqual(w.getState().chat.length, 0);
+    w.localStorage.setItem(w.STORE, dumped);
+    assert.ok(w.loadGame());
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("стрела с 17"));
+    assert.ok(w.getState().chat.length >= 2);
+  });
+
   await test("finale can be packed into a standalone HTML file", () => {
     const w = load();
     w.document.getElementById("query").value = "сохранить разбор";
