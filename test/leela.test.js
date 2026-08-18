@@ -242,8 +242,12 @@ function test(name, fn) {
     assert.ok(btn.textContent.includes("Правила"));
     const card = w.document.querySelector(".rules-card").textContent;
     assert.ok(card.includes("Правила игры"));
+    assert.ok(card.includes("Подготовка"));
+    assert.ok(card.includes("Записи ходов"));
     assert.ok(card.includes("Смысл, не финиш"));
     assert.ok(card.includes("зеркало"));
+    assert.ok(card.includes("вернуться на клетку 68"));
+    assert.ok(card.includes("69"));
   });
 
   await test("guide answers about a cell, the query, and why games can be short", () => {
