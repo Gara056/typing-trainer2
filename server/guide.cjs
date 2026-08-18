@@ -228,11 +228,12 @@ function createGuide(opts) {
 
 function listen(opts) {
   const port = Number((opts && opts.port) || process.env.PORT || 8787);
+  const host = String((opts && opts.host) || process.env.HOST || "127.0.0.1");
   const key = String(process.env.DEEPSEEK_API_KEY || "").trim();
   const guide = createGuide(opts || {});
   const server = http.createServer(guide.handle);
-  server.listen(port, () => {
-    console.log("Leela guide on http://127.0.0.1:" + port + "/api/guide");
+  server.listen(port, host, () => {
+    console.log("Leela guide on http://" + host + ":" + port + "/api/guide");
     console.log(key ? "DEEPSEEK_API_KEY: loaded (" + key.length + " chars)" : "DEEPSEEK_API_KEY: missing — copy .env.example to .env");
   });
   return server;
