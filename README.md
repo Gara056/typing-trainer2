@@ -17,8 +17,10 @@
 
 ```bash
 cp .env.example .env   # впишите ключ с platform.deepseek.com
-npm run guide          # http://127.0.0.1:8787/api/guide
+npm run guide          # читает .env сам, http://127.0.0.1:8787/api/guide
 ```
+
+Файл `.env` в git не попадает. В облачной сессии его тоже нет — ключ нужно положить на ту машину, где крутится `npm run guide`. Не присылайте ключ в чат.
 
 В `leela.html` (или в отдельном теге перед игрой) укажите адрес сервера:
 

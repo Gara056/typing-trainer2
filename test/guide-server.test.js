@@ -1,8 +1,11 @@
 "use strict";
 
 const assert = require("assert");
+const fs = require("fs");
 const http = require("http");
-const { createGuide } = require("../server/guide.cjs");
+const os = require("os");
+const path = require("path");
+const { createGuide, loadDotEnv } = require("../server/guide.cjs");
 
 function request(server, method, path, body, headers) {
   return new Promise((resolve, reject) => {
@@ -43,6 +46,17 @@ function request(server, method, path, body, headers) {
     passed += 1;
     console.log("ok  " + name);
   };
+
+  await test("loads values from a .env file", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "leela-env-"));
+    const file = path.join(dir, ".env");
+    fs.writeFileSync(file, "LEELA_ENV_PROBE=from-file\n");
+    delete process.env.LEELA_ENV_PROBE;
+    assert.strictEqual(loadDotEnv(file), true);
+    assert.strictEqual(process.env.LEELA_ENV_PROBE, "from-file");
+    delete process.env.LEELA_ENV_PROBE;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 
   await test("rejects a client-supplied system prompt", () => {
     const g = createGuide({ getKey: () => "sk-test" });

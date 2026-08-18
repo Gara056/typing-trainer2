@@ -1,6 +1,27 @@
 "use strict";
 
+const fs = require("fs");
 const http = require("http");
+const path = require("path");
+
+function loadDotEnv(file) {
+  const p = path.resolve(file);
+  if (!fs.existsSync(p)) return false;
+  const text = fs.readFileSync(p, "utf8");
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) continue;
+    const i = t.indexOf("=");
+    if (i < 1) continue;
+    const k = t.slice(0, i).trim();
+    let v = t.slice(i + 1).trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+    if (process.env[k] == null || process.env[k] === "") process.env[k] = v;
+  }
+  return true;
+}
+
+loadDotEnv(path.join(__dirname, "..", ".env"));
 
 const SYSTEM_PROMPT =
   "Ты проводник трансформационной игры Лила (самопознание, поле Хариша Джохари). Говори по-русски, тепло и точно, без гуру-позы и без диагнозов. Не выдумывай стрелы, змеи и номера клеток — опирайся только на переданный контекст партии. Клетка — зеркало запроса, не предсказание. Победа только на 68. Короткие партии из-за стрел 54→68 и 17→69 — закон поля, не баг. Ответ: 1–3 коротких абзаца, в конце один живой вопрос игроку.";
@@ -207,14 +228,16 @@ function createGuide(opts) {
 
 function listen(opts) {
   const port = Number((opts && opts.port) || process.env.PORT || 8787);
+  const key = String(process.env.DEEPSEEK_API_KEY || "").trim();
   const guide = createGuide(opts || {});
   const server = http.createServer(guide.handle);
   server.listen(port, () => {
     console.log("Leela guide on http://127.0.0.1:" + port + "/api/guide");
+    console.log(key ? "DEEPSEEK_API_KEY: loaded (" + key.length + " chars)" : "DEEPSEEK_API_KEY: missing — copy .env.example to .env");
   });
   return server;
 }
 
-module.exports = { createGuide, listen, SYSTEM_PROMPT, LIMITS };
+module.exports = { createGuide, listen, loadDotEnv, SYSTEM_PROMPT, LIMITS };
 
 if (require.main === module) listen();
