@@ -3,7 +3,8 @@
   "private": true,
   "description": "Лила — игра самопознания (веб-версия)",
   "scripts": {
-    "test": "node test/leela.test.js"
+    "test": "node test/leela.test.js && node test/guide-server.test.js",
+    "guide": "node server/guide.cjs"
   },
   "devDependencies": {
     "jsdom": "^24.1.3"

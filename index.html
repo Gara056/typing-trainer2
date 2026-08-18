@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Лила — игра самопознания</title>
+<script>
+/* Публичный сайт: укажите адрес своего проводника. Ключ DeepSeek тогда живёт только на сервере.
+   Пример: window.LEELA_GUIDE_API = "https://your-server.example/api/guide"; */
+window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || "";
+</script>
 <style>
 :root{
   --bg:#090806;--panel:rgba(18,15,12,.78);--panel-2:rgba(28,22,16,.9);
@@ -291,7 +296,7 @@ button:disabled{opacity:.5;cursor:wait}
       </section>
       <section class="card" id="guide">
         <h2>Проводник</h2>
-        <p class="empty" id="guide-note">Спроси про клетку, стрелу, змею или как это связано с запросом. Без ключа отвечает локальный проводник. Своим ключом DeepSeek можно углубить разбор — ключ живёт только в этом браузере.</p>
+        <p class="empty" id="guide-note">Спроси про клетку, стрелу, змею или как это связано с запросом. Без сервера отвечает локальный проводник. На публичном сайте DeepSeek должен идти через ваш сервер — ключ не кладут в страницу.</p>
         <div class="hints">
           <button type="button" data-q="Что эта клетка говорит моему запросу?">Эта клетка и запрос</button>
           <button type="button" data-q="Как читать мой путь?">Мой путь</button>
@@ -303,10 +308,10 @@ button:disabled{opacity:.5;cursor:wait}
           <button type="submit">Спросить</button>
         </form>
         <details class="ai-box" id="ai-box">
-          <summary>Подключить DeepSeek</summary>
-          <p class="charm-hint" style="margin-top:8px">Бесплатный чат на deepseek.com — это сайт, его нельзя встроить. Для проводника нужен API-ключ с <b>platform.deepseek.com</b> (часто есть стартовый кредит, дальше — оплата по токенам). Ключ не уходит на наш сервер и не сохраняется в партии.</p>
-          <div class="ai-row">
-            <input id="ai-key" type="password" maxlength="200" placeholder="sk-…" autocomplete="off" spellcheck="false">
+          <summary>Проводник DeepSeek</summary>
+          <p class="charm-hint" style="margin-top:8px" id="ai-help">Безопасный путь: игра на статическом хостинге, ключ на маленьком сервере <code>/api/guide</code>. В браузер ключ не попадает. Личный ключ — только если играете с диска, у себя.</p>
+          <div class="ai-row" id="ai-key-row">
+            <input id="ai-key" type="password" maxlength="200" placeholder="личный sk-… (не для сайта)" autocomplete="off" spellcheck="false">
             <button type="button" id="btn-ai-save">Сохранить</button>
           </div>
           <p class="ai-status" id="ai-status">Сейчас: локальный проводник.</p>
@@ -644,13 +649,24 @@ function setAiKey(key){
   paintAiStatus();
   return !!k;
 }
+function getGuideApi(){
+  try{
+    const fromStore=localStorage.getItem("leela.guide.api");
+    if(fromStore&&fromStore.trim()) return fromStore.trim().replace(/\/$/,"");
+  }catch(e){}
+  return String(window.LEELA_GUIDE_API||"").trim().replace(/\/$/,"");
+}
+function guideOnline(){ return !!(getGuideApi()||getAiKey()); }
 function paintAiStatus(){
-  const el=$("ai-status"), input=$("ai-key");
-  const on=!!getAiKey();
-  if(el) el.textContent=on
-    ?"DeepSeek включён. Ключ в этом браузере. Партия по-прежнему читается локально, модель только углубляет ответ."
-    :"Сейчас: локальный проводник. Вставь ключ, если хочешь живой разбор.";
-  if(input && !input.value && on) input.placeholder="ключ сохранён · введи новый, чтобы заменить";
+  const el=$("ai-status"), input=$("ai-key"), row=$("ai-key-row");
+  const api=getGuideApi(), key=!!getAiKey();
+  if(row) row.hidden=!!api;
+  if(el){
+    if(api) el.textContent="DeepSeek через сервер сайта. Ключ на сервере, не в браузере.";
+    else if(key) el.textContent="Личный ключ в этом браузере. Так можно играть у себя; на публичный сайт ключ не кладите.";
+    else el.textContent="Сейчас: локальный проводник. Для сайта поднимите server/guide.cjs и пропишите LEELA_GUIDE_API.";
+  }
+  if(input && !input.value && key) input.placeholder="ключ сохранён · введи новый, чтобы заменить";
 }
 function cellBrief(c){
   if(!c) return "";
@@ -677,16 +693,31 @@ function buildGuideContext(question){
   return parts.join("\n");
 }
 async function askDeepSeek(question){
+  const api=getGuideApi();
+  const context=buildGuideContext(question);
+  const history=state.chat.filter(m=>m.text!==AI_THINK).slice(-8).map(m=>({role:m.role==="me"?"me":"bot",text:String(m.text||"").slice(0,500)}));
+  if(api){
+    const res=await fetch(api,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:String(question).slice(0,400),context,history})
+    });
+    if(res.status===429) throw new Error("слишком много вопросов, подождите");
+    if(!res.ok) throw new Error("сервер проводника "+res.status);
+    const data=await res.json();
+    const text=String(data.answer||data.content||"").trim();
+    if(!text) throw new Error("пустой ответ");
+    return text;
+  }
   const key=getAiKey();
   if(!key) throw new Error("нет ключа");
-  const history=state.chat.filter(m=>m.text!==AI_THINK).slice(-8).map(m=>({role:m.role==="me"?"user":"assistant",content:m.text}));
   const body={
     model:"deepseek-chat",
     temperature:0.7,
     max_tokens:700,
     messages:[
       {role:"system",content:"Ты проводник трансформационной игры Лила (самопознание, поле Хариша Джохари). Говори по-русски, тепло и точно, без гуру-позы и без диагнозов. Не выдумывай стрелы, змеи и номера клеток — опирайся только на переданный контекст партии. Клетка — зеркало запроса, не предсказание. Победа только на 68. Короткие партии из-за стрел 54→68 и 17→69 — закон поля, не баг. Ответ: 1–3 коротких абзаца, в конце один живой вопрос игроку."},
-      {role:"user",content:"Контекст партии:\n"+buildGuideContext(question)+"\n\nВопрос игрока: "+question}
+      {role:"user",content:"Контекст партии:\n"+context+"\n\nВопрос игрока: "+question}
     ]
   };
   const res=await fetch("https://api.deepseek.com/chat/completions",{
@@ -707,7 +738,7 @@ function sendGuide(text){
   if(!q) return Promise.resolve("");
   if($("chat-input")) $("chat-input").value="";
   state.chat.push({role:"me",text:q});
-  if(!getAiKey()){
+  if(!guideOnline()){
     const answer=guideAsk(q);
     state.chat.push({role:"bot",text:answer});
     if(state.chat.length>40) state.chat=state.chat.slice(-40);
@@ -1076,6 +1107,7 @@ window.guideAsk=guideAsk; window.sendGuide=sendGuide;
 window.setCharm=setCharm; window.CHARMS=CHARMS;
 window.getAiKey=getAiKey; window.setAiKey=setAiKey; window.askDeepSeek=askDeepSeek;
 window.buildGuideContext=buildGuideContext; window.AI_STORE=AI_STORE;
+window.getGuideApi=getGuideApi; window.paintAiStatus=paintAiStatus;
 </script>
 </body>
 </html>

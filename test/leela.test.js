@@ -349,6 +349,32 @@ function test(name, fn) {
     assert.ok(w.document.getElementById("chat-log").textContent.includes("локальный проводник"));
   });
 
+  await test("hosted guide API never sends the DeepSeek key from the browser", async () => {
+    const w = load();
+    w.LEELA_GUIDE_API = "https://guide.example/api/guide";
+    w.paintAiStatus();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    let sent;
+    w.fetch = async (url, opts) => {
+      sent = { url, opts };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ answer: "Сервер разобрал клетку 6." }),
+      };
+    };
+    await w.sendGuide("что говорит эта клетка?");
+    assert.strictEqual(sent.url, "https://guide.example/api/guide");
+    assert.ok(!sent.opts.headers.Authorization);
+    const body = JSON.parse(sent.opts.body);
+    assert.ok(body.question);
+    assert.ok(body.context.includes("мой выбор"));
+    assert.ok(!body.messages);
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("Сервер разобрал"));
+    assert.ok(w.document.getElementById("ai-key-row").hidden);
+  });
+
   await test("finale can be packed into a standalone HTML file", () => {
     const w = load();
     w.document.getElementById("query").value = "сохранить разбор";
