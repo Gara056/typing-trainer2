@@ -198,8 +198,12 @@ function createGuide(opts) {
       return;
     }
     const url = new URL(req.url || "/", "http://localhost");
-    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/api/guide")) {
-      send(200, { ok: true, service: "leela-guide" });
+    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/api/guide" || url.pathname === "/api/guide/health")) {
+      send(200, {
+        ok: true,
+        service: "leela-guide",
+        deepseek: Boolean(String(getKey() || "").trim()),
+      });
       return;
     }
     if (req.method !== "POST" || (url.pathname !== "/" && url.pathname !== "/api/guide")) {

@@ -24,9 +24,9 @@ npm run guide          # читает .env сам, http://127.0.0.1:8787/api/gui
 
 ## VPS Beget
 
-Игру и проводник держите на одном сервере. Ключ DeepSeek слушает только localhost.
+Ключ живёт только на сервере. Из Cursor на ваш Beget зайти нельзя: нет SSH и нет IP. Установку запускаете **вы на VPS**. Домен в панели Beget должен смотреть на IP этой машины.
 
-С компьютера (IP и пароль root — в панели Beget):
+С компьютера:
 
 ```bash
 ssh root@IP_ВАШЕГО_VPS
@@ -35,50 +35,13 @@ ssh root@IP_ВАШЕГО_VPS
 На сервере:
 
 ```bash
-apt update
-apt install -y nginx git curl
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs
-
-mkdir -p /var/www/leela
-git clone https://github.com/Gara056/typing-trainer2.git /var/www/leela
-cd /var/www/leela
-git checkout cursor/leela-rules-guide-fbce
-cp .env.example .env
-nano .env
-chown -R www-data:www-data /var/www/leela
-chmod 600 /var/www/leela/.env
+wget -O /tmp/install-beget.sh https://raw.githubusercontent.com/Gara056/typing-trainer2/cursor/leela-rules-guide-fbce/server/install-beget.sh
+sudo bash /tmp/install-beget.sh
 ```
 
-В `.env`:
+Скрипт спросит домен и ключ DeepSeek (ввод ключа не видно), поставит Node, nginx, systemd, Let's Encrypt и пропишет `LEELA_GUIDE_API = '/api/guide'`. Ключ в чат не копируйте.
 
-```
-DEEPSEEK_API_KEY=ваш_ключ
-GUIDE_ORIGIN=https://ваш-домен.ru
-HOST=127.0.0.1
-PORT=8787
-```
-
-В `leela.html` (начало файла):
-
-```html
-window.LEELA_GUIDE_API = "https://ваш-домен.ru/api/guide";
-```
-
-```bash
-cp /var/www/leela/server/leela-guide.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable --now leela-guide
-
-cp /var/www/leela/server/nginx.leela.conf.example /etc/nginx/sites-available/leela
-# в файле замените YOUR_DOMAIN.ru на свой домен
-ln -sf /etc/nginx/sites-available/leela /etc/nginx/sites-enabled/leela
-nginx -t && systemctl reload nginx
-apt install -y certbot python3-certbot-nginx
-certbot --nginx -d ваш-домен.ru
-```
-
-Домен в панели Beget должен смотреть на IP этой VPS. Проверка: `systemctl status leela-guide`.
+Проверка: `curl -sS https://ваш-домен.ru/api/guide/health` → `ok`, `deepseek: true`. Игра: `https://ваш-домен.ru/`. В карточке «Проводник» — «ключ на сервере».
 
 Личный ключ в карточке проводника — только для игры у себя на компьютере, не для публичного сайта.
 

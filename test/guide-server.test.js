@@ -96,6 +96,7 @@ function request(server, method, path, body, headers) {
       const res = await request(server, "GET", "/api/guide");
       assert.strictEqual(res.status, 200);
       assert.strictEqual(res.json.ok, true);
+      assert.strictEqual(res.json.deepseek, true);
       assert.strictEqual(calls.length, 0);
     });
 
