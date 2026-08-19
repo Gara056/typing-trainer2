@@ -346,7 +346,7 @@ function test(name, fn) {
 
     w.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
     await w.sendGuide("как играть?");
-    assert.ok(w.document.getElementById("chat-log").textContent.includes("локальный проводник"));
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("Семь опор"));
   });
 
   await test("hosted guide API never sends the DeepSeek key from the browser", async () => {
@@ -372,7 +372,7 @@ function test(name, fn) {
     assert.ok(body.context.includes("мой выбор"));
     assert.ok(!body.messages);
     assert.ok(w.document.getElementById("chat-log").textContent.includes("Сервер разобрал"));
-    assert.ok(w.document.getElementById("ai-key-row").hidden);
+    assert.ok(w.getGuideApi());
   });
 
   await test("finale can be packed into a standalone HTML file", () => {

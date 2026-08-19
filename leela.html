@@ -146,22 +146,15 @@ input[type=text]:disabled{opacity:.72;color:var(--gold-2)}
 .qthread{color:var(--gold-2);font-style:italic;margin-top:8px}
 #btn-live{background:transparent;color:var(--gold-2);border:1px solid var(--gold);display:none}
 #btn-live.show{display:inline-flex}
-.chat-log{max-height:240px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.chat-log{max-height:min(420px,52vh);overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;flex:1;min-height:180px}
 .msg{padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.55;white-space:pre-wrap}
 .msg.me{align-self:flex-end;background:rgba(201,164,92,.16);border:1px solid var(--line);max-width:92%}
 .msg.bot{align-self:flex-start;background:rgba(8,6,4,.55);border:1px solid var(--line);max-width:100%}
 .chat-form{display:flex;gap:8px}
+#guide.card{display:flex;flex-direction:column;min-height:320px}
+#guide .chat-form{margin-top:auto}
 .chat-form input{flex:1}
 .chat-form button{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;font-weight:700;padding:10px 14px}
-.hints{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
-.hints button{background:transparent;color:var(--muted);border:1px solid var(--line);padding:6px 10px;font-size:11px;letter-spacing:.02em}
-.ai-box{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
-.ai-box summary{cursor:pointer;color:var(--gold-2);font-size:13px;list-style:none}
-.ai-box summary::-webkit-details-marker{display:none}
-.ai-box .ai-row{display:flex;gap:8px;margin-top:8px}
-.ai-box .ai-row input{flex:1}
-.ai-box .ai-row button{background:transparent;color:var(--gold-2);border:1px solid var(--line);padding:10px 12px;font-size:12px}
-.ai-status{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.45}
 #rules{position:fixed;inset:0;z-index:21;display:none;place-items:center;background:rgba(6,4,2,.72);backdrop-filter:blur(10px)}
 #rules.show{display:grid}
 .rules-card{width:min(640px,92vw);max-height:86vh;overflow:auto;padding:28px 24px;border-radius:22px;background:linear-gradient(180deg,#221a12,#120e0a);border:1px solid var(--gold);line-height:1.6;font-size:14px;color:#ebe4d6}
@@ -296,26 +289,11 @@ button:disabled{opacity:.5;cursor:wait}
       </section>
       <section class="card" id="guide">
         <h2>Проводник</h2>
-        <p class="empty" id="guide-note">Спроси про клетку, стрелу, змею или как это связано с запросом. Без сервера отвечает локальный проводник. На публичном сайте DeepSeek должен идти через ваш сервер — ключ не кладут в страницу.</p>
-        <div class="hints">
-          <button type="button" data-q="Что эта клетка говорит моему запросу?">Эта клетка и запрос</button>
-          <button type="button" data-q="Как читать мой путь?">Мой путь</button>
-          <button type="button" data-q="Почему партия может закончиться быстро?">Почему быстро</button>
-        </div>
         <div id="chat-log" class="chat-log"></div>
         <form class="chat-form" id="chat-form">
-          <input id="chat-input" type="text" maxlength="400" placeholder="Спроси, например: что значит стрела с 17?" autocomplete="off">
+          <input id="chat-input" type="text" maxlength="400" placeholder="Напиши проводнику…" autocomplete="off">
           <button type="submit">Спросить</button>
         </form>
-        <details class="ai-box" id="ai-box">
-          <summary>Проводник DeepSeek</summary>
-          <p class="charm-hint" style="margin-top:8px" id="ai-help">Безопасный путь: игра на статическом хостинге, ключ на маленьком сервере <code>/api/guide</code>. В браузер ключ не попадает. Личный ключ — только если играете с диска, у себя.</p>
-          <div class="ai-row" id="ai-key-row">
-            <input id="ai-key" type="password" maxlength="200" placeholder="личный sk-… (не для сайта)" autocomplete="off" spellcheck="false">
-            <button type="button" id="btn-ai-save">Сохранить</button>
-          </div>
-          <p class="ai-status" id="ai-status">Сейчас: локальный проводник.</p>
-        </details>
       </section>
     </aside>
   </main>
@@ -381,7 +359,7 @@ const CHARMS={
   ether:{id:"ether",name:"Кристалл",tattva:"Эфир",hint:"Акаша — пространство цели",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.4l5.8 7.6L12 21.6 6.2 10z" fill="#b9a6d4"/><path d="M12 2.4l5.8 7.6H6.2z" fill="#e4daf2"/><path d="M8.2 10h7.6L12 21.6z" fill="#9a86bc"/></svg>'}
 };
 const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:""};
-const GUIDE_HELLO="Я проводник поля. Отвечаю по клеткам, запросу и твоему пути — без внешней сети, чтобы партия оставалась целой. Спроси про клетку, стрелу, змею или смысл.";
+const GUIDE_HELLO="Я проводник поля. Спроси про клетку, запрос, путь, стрелу или змею — своими словами.";
 let hydrating=false;
 const $=id=>document.getElementById(id);
 function cellOrder(){
@@ -657,17 +635,7 @@ function getGuideApi(){
   return String(window.LEELA_GUIDE_API||"").trim().replace(/\/$/,"");
 }
 function guideOnline(){ return !!(getGuideApi()||getAiKey()); }
-function paintAiStatus(){
-  const el=$("ai-status"), input=$("ai-key"), row=$("ai-key-row");
-  const api=getGuideApi(), key=!!getAiKey();
-  if(row) row.hidden=!!api;
-  if(el){
-    if(api) el.textContent="DeepSeek через сервер сайта. Ключ на сервере, не в браузере.";
-    else if(key) el.textContent="Личный ключ в этом браузере. Так можно играть у себя; на публичный сайт ключ не кладите.";
-    else el.textContent="Сейчас: локальный проводник. Для сайта поднимите server/guide.cjs и пропишите LEELA_GUIDE_API.";
-  }
-  if(input && !input.value && key) input.placeholder="ключ сохранён · введи новый, чтобы заменить";
-}
+function paintAiStatus(){}
 function cellBrief(c){
   if(!c) return "";
   const extra=DATA.psych[String(c.n)]||"";
@@ -757,15 +725,15 @@ function sendGuide(text){
     renderChat();
     saveGame();
     return answer;
-  }).catch(err=>{
+  }).catch(()=>{
     const fallback=guideAsk(q);
-    const msg=fallback+"\n\nDeepSeek не ответил ("+(err&&err.message?err.message:"сеть")+"). Сработал локальный проводник.";
     const last=state.chat[state.chat.length-1];
-    if(last&&last.role==="bot") last.text=msg;
-    else state.chat.push({role:"bot",text:msg});
+    if(last&&last.role==="bot") last.text=fallback;
+    else state.chat.push({role:"bot",text:fallback});
+    if(state.chat.length>40) state.chat=state.chat.slice(-40);
     renderChat();
     saveGame();
-    return msg;
+    return fallback;
   });
 }
 function snapshot(){
@@ -1078,17 +1046,6 @@ function init(){
   $("rules").addEventListener("click",e=>{if(e.target.id==="rules") $("rules").classList.remove("show");});
   $("query").addEventListener("input",saveGame);
   $("chat-form").addEventListener("submit",e=>{e.preventDefault();sendGuide();});
-  document.querySelectorAll("#guide .hints [data-q]").forEach(b=>{
-    b.addEventListener("click",()=>sendGuide(b.dataset.q));
-  });
-  $("btn-ai-save").addEventListener("click",()=>{
-    const v=$("ai-key").value.trim();
-    setAiKey(v);
-    $("ai-key").value="";
-  });
-  $("ai-key").addEventListener("keydown",e=>{
-    if(e.key==="Enter"){ e.preventDefault(); $("btn-ai-save").click(); }
-  });
   paintAiStatus();
   window.addEventListener("resize",()=>{if(state.pos) placeToken(state.pos,true);});
   window.addEventListener("pageshow",()=>{if(state.pos) placeToken(state.pos,true);});
