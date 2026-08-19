@@ -24,17 +24,30 @@ npm run guide          # читает .env сам, http://127.0.0.1:8787/api/gui
 
 ## VPS Beget
 
-Ключ живёт только на сервере. Из Cursor на ваш Beget зайти нельзя: нет SSH и нет IP. Установку запускаете **вы на VPS**. Домен в панели Beget должен смотреть на IP этой машины.
+Ключ живёт только на сервере. Из Cursor на ваш Beget зайти нельзя: нет SSH и нет IP. Установку запускаете **вы на VPS**.
 
-С компьютера:
+### Уже есть OpenClaw на этом же VPS
+
+OpenClaw обычно слушает **127.0.0.1:18789** и отдаётся через nginx с WebSocket на **своём** домене (например `ai.ваш-домен.ru`). Лила не конфликтует: проводник на **127.0.0.1:8787**, статика в `/var/www/leela`.
+
+**Важно:** дайте Лиле **отдельный поддомен** (`leela.ваш-домен.ru`), не тот же URL, что панель OpenClaw.
+
+1. В DNS Beget: A-запись `leela` → IP VPS (OpenClaw не трогайте).
+2. SSH на сервер, запустите установщик; на вопрос про OpenClaw ответьте **y** и укажите поддомен Лилы.
 
 ```bash
 ssh root@IP_ВАШЕГО_VPS
+wget -O /tmp/install-beget.sh https://raw.githubusercontent.com/Gara056/typing-trainer2/cursor/leela-rules-guide-fbce/server/install-beget.sh
+sudo bash /tmp/install-beget.sh
+# или сразу: sudo EXISTING_OPENCLAW=1 bash /tmp/install-beget.sh
 ```
 
-На сервере:
+Скрипт **не** удалит конфиг OpenClaw и **не** снимет `default` nginx. Проверка: `curl -sS https://leela.ваш-домен.ru/api/guide/health`.
+
+### Чистый VPS (без OpenClaw)
 
 ```bash
+ssh root@IP_ВАШЕГО_VPS
 wget -O /tmp/install-beget.sh https://raw.githubusercontent.com/Gara056/typing-trainer2/cursor/leela-rules-guide-fbce/server/install-beget.sh
 sudo bash /tmp/install-beget.sh
 ```
