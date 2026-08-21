@@ -215,7 +215,18 @@ button:disabled{opacity:.5;cursor:wait}
 .win-card h4 i{font-size:13px;color:var(--gold);font-weight:400}
 .finale-step{border-top:1px solid var(--line);padding:14px 0 6px}
 #finale{margin-top:8px}
-#btn-html,#btn-txt,#btn-share{background:transparent;color:var(--gold-2);border:1px solid var(--gold);margin:6px 6px 0 0}
+#btn-html,#btn-txt,#btn-share,#btn-pdf{background:transparent;color:var(--gold-2);border:1px solid var(--gold);margin:6px 6px 0 0}
+#btn-pdf{background:linear-gradient(180deg,#e8d090,#c49a48);color:#2a1d08;font-weight:700;border-color:transparent}
+.export-hint{font-size:12px;color:var(--muted);text-align:center;margin:8px 0 0;line-height:1.45}
+.insight-block{margin:14px 0 8px;padding:16px 14px;border:1px solid rgba(201,164,92,.35);border-radius:16px;background:rgba(8,6,4,.45)}
+.insight-block .orn{text-align:center;color:var(--gold);letter-spacing:.4em;font-size:12px;margin-bottom:8px}
+.insight-lead{color:var(--ivory);line-height:1.55;margin:0 0 12px}
+.insight-cell{border-top:1px solid var(--line);padding:10px 0 4px}
+.insight-cell b{color:var(--gold-2);font-family:var(--serif);font-weight:500}
+.insight-cell p{margin:6px 0 0;color:#ebe4d6;font-size:14px;line-height:1.5}
+.insight-q{margin-top:14px;padding-top:12px;border-top:1px solid rgba(201,164,92,.35)}
+.insight-q .label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+.insight-q p{font-family:var(--serif);font-size:18px;color:var(--gold-2);font-style:italic;line-height:1.45;margin:0}
 .export-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px}
 @media(max-width:900px){
   main,.board-frame{grid-template-columns:1fr}
@@ -337,13 +348,15 @@ button:disabled{opacity:.5;cursor:wait}
 <div id="win"><div class="win-card">
   <div class="kicker">Вайкунтха-лока</div>
   <h3>Космическое Сознание</h3>
-  <p id="win-text">Ты достиг клетки 68. Ниже — полный разбор партии.</p>
+  <p id="win-text">Ты достиг клетки 68. Ниже — краткое зеркало партии и полный разбор пути.</p>
   <div id="finale"></div>
   <div class="export-row">
-    <button id="btn-html" type="button">Скачать разбор HTML</button>
+    <button id="btn-pdf" type="button">Скачать PDF</button>
+    <button id="btn-html" type="button">Скачать HTML</button>
     <button id="btn-txt" type="button">Скачать текст</button>
     <button id="btn-share" type="button">Поделиться</button>
   </div>
+  <p class="export-hint">PDF: в окне печати выберите «Сохранить как PDF» — оформление в ведическом стиле.</p>
   <button id="btn-win" type="button">Начать заново</button>
 </div></div>
 <script>
@@ -362,7 +375,7 @@ const CHARMS={
   air:{id:"air",name:"Перо",tattva:"Воздух",hint:"Вайю — дыхание и простор",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 16.2c5.6-.8 9.6-3.6 13.6-10.4" fill="none" stroke="#d8cbb8" stroke-width="1.5" stroke-linecap="round"/><path d="M8.2 15.2l2.8-3.8M11 14.2l2.8-4.4M13.8 12.4l2.6-3.6" fill="none" stroke="#d8cbb8" stroke-width="1.05" stroke-linecap="round"/></svg>'},
   ether:{id:"ether",name:"Кристалл",tattva:"Эфир",hint:"Акаша — пространство цели",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.4l5.8 7.6L12 21.6 6.2 10z" fill="#b9a6d4"/><path d="M12 2.4l5.8 7.6H6.2z" fill="#e4daf2"/><path d="M8.2 10h7.6L12 21.6z" fill="#9a86bc"/></svg>'}
 };
-const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:"",guideAsks:0};
+const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:"",guideAsks:0,guideLog:[]};
 const GUIDE_ASK_MAX=5;
 const GUIDE_CLOSE="Суть этого хода уже прозвучала. Дай ей чуть дозреть в тебе — а дальше давай разберём следующий бросок. У тебя ещё будет время подумать над тем, что услышал.";
 const GUIDE_HELLO="Спроси про клетку и запрос — своими словами. Смотрим только архетип, тень и ранний слой опыта.";
@@ -578,11 +591,102 @@ function paintGuideQuota(){
   }
   if(btn) btn.disabled=locked;
 }
+function archiveGuideChatFor(cellN){
+  const n=Number(cellN)||0;
+  const me=state.chat.filter(m=>m.role==="me");
+  if(!me.length) return;
+  const notes=state.chat
+    .filter(m=>m.role==="bot"&&m.text&&m.text!==AI_THINK)
+    .map(m=>String(m.text||"").split(GUIDE_CLOSE)[0].trim())
+    .filter(Boolean);
+  if(!notes.length) return;
+  const cell=n>=1&&n<=72?DATA.cells[n-1]:null;
+  const entry={
+    n:cell?cell.n:0,
+    name:cell?cell.name:"Перед входом",
+    sk:cell?cell.sk:"",
+    asks:guideAskCount(),
+    notes:notes.slice(-5)
+  };
+  const last=state.guideLog[state.guideLog.length-1];
+  if(last&&last.n===entry.n){
+    last.notes=entry.notes;
+    last.asks=entry.asks;
+  }else state.guideLog.push(entry);
+  if(state.guideLog.length>36) state.guideLog=state.guideLog.slice(-36);
+}
 function refreshGuideChat(){
   state.chat=[];
   state.guideAsks=0;
   if($("chat-input")) $("chat-input").value="";
   renderChat();
+}
+function clipInsight(text,max){
+  let t=String(text||"").replace(/\s+/g," ").trim();
+  if(t.length<=max) return t;
+  const cut=t.slice(0,max);
+  const sp=cut.lastIndexOf(" ");
+  return (sp>max*0.6?cut.slice(0,sp):cut).trim()+"…";
+}
+function pickKeyQuestion(q,chapters){
+  const focus=chapters.filter(c=>c.n&&c.n!==68).slice(-1)[0]||chapters.slice(-1)[0];
+  if(focus&&focus.n){
+    const cell=DATA.cells[focus.n-1];
+    const base=(cell.q&&cell.q[0])||"Что во мне ещё не увидено";
+    return base.replace(/\?$/,"")+" — в зеркале запроса «"+q+"»?";
+  }
+  return "Кто во мне смотрит на запрос «"+q+"» теперь, когда поле уже молчит?";
+}
+function buildPathInsight(){
+  const q=queryText();
+  const byN={};
+  (state.guideLog||[]).forEach(e=>{ if(e&&e.n!=null) byN[e.n]=e; });
+  const ordered=[];
+  const seen=new Set();
+  state.history.forEach(h=>{
+    if(!h||seen.has(h.n)) return;
+    seen.add(h.n);
+    ordered.push(h.n);
+  });
+  const chapters=[];
+  ordered.forEach(n=>{
+    const c=DATA.cells[n-1];
+    if(!c) return;
+    const log=byN[n];
+    const fromGuide=!!(log&&log.notes&&log.notes.length);
+    const essence=fromGuide
+      ? clipInsight(log.notes[log.notes.length-1], 300)
+      : clipInsight(DATA.psych[String(n)]||c.d, 220);
+    chapters.push({n:c.n,name:c.name,sk:c.sk,essence,fromGuide});
+  });
+  let shown=chapters.filter(c=>c.fromGuide);
+  if(shown.length<2) shown=chapters.slice(0, Math.min(6, chapters.length));
+  else if(shown.length>8) shown=shown.slice(0,8);
+  if(!shown.some(c=>c.n===68)&&chapters.some(c=>c.n===68)){
+    shown=shown.concat(chapters.filter(c=>c.n===68)).slice(0,9);
+  }
+  const guided=chapters.filter(c=>c.fromGuide).length;
+  const lead=guided
+    ?"По запросу «"+q+"» проводник прошёл "+guided+" клет"+(guided===1?"ку":guided<5?"ки":"ок")+" с разговором. Ниже — сжатое зеркало партии: архетип, тень и ранний слой, без лишней воды."
+    :"По запросу «"+q+"» собран путь клеток. Разговоров с проводником почти не было — зеркало читаем по полю: кратко, по сути.";
+  return {
+    q,
+    lead,
+    path:pathLine(),
+    chapters:shown,
+    keyQuestion:pickKeyQuestion(q, chapters.length?chapters:shown),
+    guided
+  };
+}
+function buildInsightHtml(insight){
+  const cells=(insight.chapters||[]).map(c=>`<div class="insight-cell"><b>${c.n}. ${esc(c.name)}</b>${c.sk?` <i style="color:var(--gold);font-size:12px">${esc(c.sk)}</i>`:""}<p>${esc(c.essence)}</p></div>`).join("");
+  return `<section class="insight-block" id="path-insight">
+    <div class="orn">✦ · ॐ · ✦</div>
+    <div class="sec" style="border:0;padding:0;margin:0"><b>Зеркало партии</b></div>
+    <p class="insight-lead">${esc(insight.lead)}</p>
+    ${cells}
+    <div class="insight-q"><div class="label">Вопрос на подумать</div><p>${esc(insight.keyQuestion)}</p></div>
+  </section>`;
 }
 function findCellRef(ql){
   const m=String(ql).match(/(?:клетк[ауие]\s*)?(?:№\s*)?([1-9]|[1-6]\d|7[0-2])\b/);
@@ -803,6 +907,7 @@ function snapshot(){
     chat:state.chat.slice(-40),
     charm:state.charm||"",
     guideAsks:guideAskCount(),
+    guideLog:(state.guideLog||[]).slice(-36),
     savedAt:Date.now()
   };
 }
@@ -834,6 +939,7 @@ function loadGame(){
     state.guideAsks=typeof s.guideAsks==="number"
       ? Math.max(0, Math.min(GUIDE_ASK_MAX, s.guideAsks|0))
       : Math.min(GUIDE_ASK_MAX, state.chat.filter(m=>m.role==="me").length);
+    state.guideLog=Array.isArray(s.guideLog)?s.guideLog.filter(e=>e&&typeof e.n==="number"&&e.name&&Array.isArray(e.notes)).slice(-36):[];
     $("query").value=s.query||"";
     $("query").disabled=state.queryLocked;
     setDiceFace(s.dice||0);
@@ -907,7 +1013,86 @@ function downloadBlob(content,mime,filename){
 function exportFinale(kind){
   const name="lila-razbor-"+fileStamp();
   if(kind==="txt") downloadBlob(buildFinaleText(),"text/plain;charset=utf-8",name+".txt");
+  else if(kind==="pdf") exportFinalePdf();
   else downloadBlob(buildFinaleDocument(),"text/html;charset=utf-8",name+".html");
+}
+function buildVedicPdfDocument(){
+  const insight=buildPathInsight();
+  const q=esc(insight.q);
+  const cells=(insight.chapters||[]).map(c=>`
+    <section class="cell">
+      <div class="num">${c.n}</div>
+      <div>
+        <h3>${esc(c.name)}${c.sk?` <span>${esc(c.sk)}</span>`:""}</h3>
+        <p>${esc(c.essence)}</p>
+      </div>
+    </section>`).join("");
+  return `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Лила · зеркало партии — ${q}</title>
+<style>
+  @page{size:A4;margin:18mm 16mm}
+  *{box-sizing:border-box}
+  body{margin:0;background:#1a100c;color:#f3e6d0;font:15px/1.55 "Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif}
+  .sheet{max-width:720px;margin:0 auto;padding:28px 26px 36px;background:
+    radial-gradient(ellipse at 50% 0%,rgba(201,164,92,.16),transparent 55%),
+    linear-gradient(180deg,#2a1c14 0%,#140e0a 100%);
+    border:1px solid #c9a45c;box-shadow:0 0 0 6px #140e0a,0 0 0 7px rgba(201,164,92,.45)}
+  .orn{text-align:center;color:#c9a45c;letter-spacing:.55em;font-size:13px;margin:0 0 10px}
+  .kicker{text-align:center;letter-spacing:.34em;text-transform:uppercase;font-size:11px;color:#d4b56a;margin:0 0 8px}
+  h1{text-align:center;font-weight:500;font-size:30px;color:#f0ddb0;margin:0 0 6px}
+  .sub{text-align:center;color:#cbb79a;font-size:13px;margin:0 0 18px}
+  .query{text-align:center;font-style:italic;font-size:18px;color:#f0ddb0;border-top:1px solid rgba(201,164,92,.35);border-bottom:1px solid rgba(201,164,92,.35);padding:14px 8px;margin:0 0 18px}
+  .lead{color:#ebe0cf;margin:0 0 16px}
+  .cell{display:flex;gap:12px;padding:12px 0;border-top:1px solid rgba(201,164,92,.22)}
+  .num{flex:0 0 36px;height:36px;border:1px solid #c9a45c;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#f0ddb0;font-size:13px}
+  h3{margin:0 0 6px;font-weight:500;font-size:17px;color:#f0ddb0}
+  h3 span{font-size:12px;color:#c9a45c;font-style:italic;font-weight:400}
+  .cell p{margin:0;color:#e7dcc8;font-size:14px}
+  .qbox{margin-top:22px;padding:16px 14px;border:1px solid #c9a45c;background:rgba(201,164,92,.08)}
+  .qlabel{letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:#c9a45c;margin-bottom:8px}
+  .qtext{font-size:20px;line-height:1.4;color:#f0ddb0;font-style:italic}
+  .foot{margin-top:22px;text-align:center;font-size:11px;color:#a8947c;letter-spacing:.08em}
+  @media print{
+    body{background:#fff}
+    .sheet{box-shadow:none;border-color:#8a6b2e;background:#fffaf2;color:#2a1d08}
+    .kicker,.orn,h1,h3,.query,.qtext{color:#5c4016}
+    .lead,.cell p,.sub{color:#3a2a18}
+    .num{border-color:#8a6b2e;color:#5c4016}
+    .qbox{background:#f7efdf;border-color:#8a6b2e}
+    .qlabel,h3 span{color:#8a6b2e}
+    .foot{color:#7a6548}
+  }
+</style></head><body>
+<div class="sheet">
+  <div class="orn">✦ · ॐ · ✦</div>
+  <div class="kicker">Лила · ведическое зеркало партии</div>
+  <h1>Космическое Сознание</h1>
+  <p class="sub">Краткий разбор пути · ${esc(new Date().toLocaleString("ru-RU"))}</p>
+  <div class="query">«${q}»</div>
+  <p class="lead">${esc(insight.lead)}</p>
+  ${cells}
+  <div class="qbox">
+    <div class="qlabel">Вопрос на подумать</div>
+    <div class="qtext">${esc(insight.keyQuestion)}</div>
+  </div>
+  <p class="foot">Вайкунтха-лока · клетка 68 · не кубок, а совпадение со источником</p>
+</div>
+<script>
+window.addEventListener("load",function(){
+  setTimeout(function(){ window.focus(); window.print(); }, 250);
+});
+</script>
+</body></html>`;
+}
+function exportFinalePdf(){
+  const html=buildVedicPdfDocument();
+  const w=window.open("","_blank");
+  if(!w){
+    downloadBlob(html,"text/html;charset=utf-8","lila-zerkalo-"+fileStamp()+".html");
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 async function shareFinale(){
   const name="lila-razbor-"+fileStamp()+".html";
@@ -982,6 +1167,7 @@ function buildFinale(){
     </article>`;
   }).join("");
   return `<div class="sec"><b>Запрос партии</b><p class="qthread">«${esc(q)}»</p></div>
+    ${buildInsightHtml(buildPathInsight())}
     <div class="sec"><b>Дуга пути</b><p>${esc(arc)} ${esc(howWin)}</p></div>
     <div class="sec"><b>Шаги к запросу после игры</b><ol class="ask">${steps.map(s=>"<li>"+esc(s)+"</li>").join("")}</ol></div>
     <div class="sec"><b>Ход за ходом</b></div>${stepHtml}`;
@@ -989,14 +1175,15 @@ function buildFinale(){
 function openFinale(){
   const q=($("query").value||"").trim();
   $("win-text").textContent=q
-    ?"Запрос «"+q+"» дошёл до клетки 68. Ниже — разбор именно этой цепочки ходов, не общий шаблон."
-    :"Путь закрыт на клетке 68. Ниже — разбор ходов и что они просят сделать с запросом.";
+    ?"Запрос «"+q+"» дошёл до клетки 68. Ниже — зеркало разговоров с проводником и разбор пути."
+    :"Путь закрыт на клетке 68. Ниже — зеркало партии и разбор ходов.";
   $("finale").innerHTML=buildFinale();
   $("win").classList.add("show");
   $("win").scrollTop=0;
 }
 function applyRoll(r){
   const out={r,pos:state.pos,entered:state.pos>0,moved:false,won:state.won,via:null};
+  const chatCell=state.pos;
   if(state.won) return out;
   if(state.pos===0){
     if(r!==6){
@@ -1030,6 +1217,10 @@ function applyRoll(r){
     out.via="snake"; out.pos=state.pos; transit={kind:"snake",from:here};
     $("status").textContent="Змея: спуск с "+here+" на "+state.pos+" — "+DATA.cells[state.pos-1].name+". Это узел запроса, не штраф.";
   }
+  if(out.moved){
+    archiveGuideChatFor(chatCell);
+    refreshGuideChat();
+  }
   if(state.pos===68){
     state.won=true; out.won=true; state.mustRead=false;
     $("status").textContent="Клетка 68 — Космическое Сознание. Смотри полный разбор партии.";
@@ -1039,7 +1230,6 @@ function applyRoll(r){
   }else if(out.moved){
     requireRead();
   }
-  if(out.moved) refreshGuideChat();
   highlight(); placeToken(state.pos); showCell(state.pos,transit); renderHistory();
   saveGame();
   out.pos=state.pos; return out;
@@ -1066,7 +1256,7 @@ function roll(){
   },55);
 }
 function resetGame(){
-  state.pos=0; state.history=[]; state.won=false; state.rolling=false; state.queryLocked=false; state.look=0; state.mustRead=false; state.chat=[]; state.charm=""; state.guideAsks=0;
+  state.pos=0; state.history=[]; state.won=false; state.rolling=false; state.queryLocked=false; state.look=0; state.mustRead=false; state.chat=[]; state.charm=""; state.guideAsks=0; state.guideLog=[];
   const q=$("query"); q.disabled=false; q.value="";
   $("btn-roll").disabled=false;
   $("btn-live").classList.remove("show");
@@ -1082,7 +1272,7 @@ function resetGame(){
   applyCharm();
   try{ localStorage.removeItem(STORE); }catch(e){}
 }
-function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked,mustRead:state.mustRead,chat:state.chat.slice(),charm:state.charm,guideAsks:guideAskCount()};}
+function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked,mustRead:state.mustRead,chat:state.chat.slice(),charm:state.charm,guideAsks:guideAskCount(),guideLog:(state.guideLog||[]).slice()};}
 function init(){
   buildDice(); buildBoard(); buildCharms(); applyCharm(); setDiceFace(0);
   $("btn-roll").addEventListener("click",roll);
@@ -1099,6 +1289,7 @@ function init(){
   });
   $("btn-html").addEventListener("click",()=>exportFinale("html"));
   $("btn-txt").addEventListener("click",()=>exportFinale("txt"));
+  $("btn-pdf").addEventListener("click",()=>exportFinale("pdf"));
   $("btn-share").addEventListener("click",()=>shareFinale());
   $("btn-rules").addEventListener("click",()=>$("rules").classList.add("show"));
   $("btn-rules-close").addEventListener("click",()=>$("rules").classList.remove("show"));
@@ -1119,6 +1310,7 @@ window.showCell=showCell; window.setDiceFace=setDiceFace; window.getState=getSta
 window.buildFinale=buildFinale; window.liveCell=liveCell;
 window.saveGame=saveGame; window.loadGame=loadGame; window.STORE=STORE;
 window.buildFinaleDocument=buildFinaleDocument; window.buildFinaleText=buildFinaleText;
+window.buildPathInsight=buildPathInsight; window.buildVedicPdfDocument=buildVedicPdfDocument; window.exportFinalePdf=exportFinalePdf;
 window.guideAsk=guideAsk; window.sendGuide=sendGuide; window.refreshGuideChat=refreshGuideChat;
 window.setCharm=setCharm; window.CHARMS=CHARMS;
 window.getAiKey=getAiKey; window.setAiKey=setAiKey; window.askDeepSeek=askDeepSeek;

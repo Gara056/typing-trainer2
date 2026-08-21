@@ -193,7 +193,9 @@ function test(name, fn) {
     assert.ok(finale.includes("Заблуждение"));
     assert.ok(finale.includes("Космическое Сознание"));
     assert.ok(finale.includes("Ход за ходом") || finale.includes("клетка 68"));
+    assert.ok(finale.includes("Зеркало партии") || finale.includes("Вопрос на подумать"));
     assert.ok(w.document.getElementById("win").classList.contains("show"));
+    assert.ok(w.document.getElementById("btn-pdf"));
     const names = [...new Set(w.getState().history.map((h) => w.DATA.cells[h.n - 1].name))];
     assert.ok(names.every((name) => finale.includes(name)));
   });
@@ -425,6 +427,29 @@ function test(name, fn) {
     assert.ok(doc.includes("сохранить разбор"));
     assert.ok(doc.includes("Космическое Сознание"));
     assert.ok(w.buildFinaleText().includes("сохранить разбор"));
+  });
+
+  await test("guide chats are archived and vedic PDF mirrors the path", async () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    await w.sendGuide("что говорит эта клетка?");
+    assert.ok(w.getState().guideAsks >= 1);
+    w.liveCell();
+    w.applyRoll(1);
+    assert.ok(w.getState().guideLog.some((e) => e.n === 6 && e.notes.length));
+    for (let i = 0; i < 800 && !w.getState().won; i++) {
+      w.applyRoll(1 + Math.floor(Math.random() * 6));
+    }
+    assert.ok(w.getState().won);
+    const insight = w.buildPathInsight();
+    assert.ok(insight.keyQuestion);
+    assert.ok(insight.chapters.length >= 1);
+    const pdf = w.buildVedicPdfDocument();
+    assert.ok(pdf.includes("ॐ"));
+    assert.ok(pdf.includes("Вопрос на подумать"));
+    assert.ok(pdf.includes("мой выбор"));
+    assert.ok(pdf.includes(insight.keyQuestion));
   });
 
   if (process.exitCode) {
