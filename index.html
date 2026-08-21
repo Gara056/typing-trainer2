@@ -147,6 +147,7 @@ input[type=text]:disabled{opacity:.72;color:var(--gold-2)}
 #btn-live{background:transparent;color:var(--gold-2);border:1px solid var(--gold);display:none}
 #btn-live.show{display:inline-flex}
 .chat-log{max-height:min(420px,52vh);overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;flex:1;min-height:180px}
+.guide-blurb{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 12px}
 .msg{padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.55;white-space:pre-wrap}
 .msg.me{align-self:flex-end;background:rgba(201,164,92,.16);border:1px solid var(--line);max-width:92%}
 .msg.bot{align-self:flex-start;background:rgba(8,6,4,.55);border:1px solid var(--line);max-width:100%}
@@ -289,6 +290,7 @@ button:disabled{opacity:.5;cursor:wait}
       </section>
       <section class="card" id="guide">
         <h2>Проводник</h2>
+        <p class="guide-blurb">Проводник поможет разобрать клетку глубже: какой архетип сейчас на сцене, какая тень и что поле говорит твоему запросу. После каждого хода можно спросить снова.</p>
         <div id="chat-log" class="chat-log"></div>
         <form class="chat-form" id="chat-form">
           <input id="chat-input" type="text" maxlength="400" placeholder="Напиши проводнику…" autocomplete="off">
@@ -359,7 +361,9 @@ const CHARMS={
   ether:{id:"ether",name:"Кристалл",tattva:"Эфир",hint:"Акаша — пространство цели",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.4l5.8 7.6L12 21.6 6.2 10z" fill="#b9a6d4"/><path d="M12 2.4l5.8 7.6H6.2z" fill="#e4daf2"/><path d="M8.2 10h7.6L12 21.6z" fill="#9a86bc"/></svg>'}
 };
 const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:""};
-const GUIDE_HELLO="Я проводник поля. Спроси про клетку, запрос, путь, стрелу или змею — своими словами.";
+const GUIDE_HELLO="Спроси про клетку, запрос, путь, стрелу или змею — своими словами.";
+const GUIDE_SYSTEM=
+  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Опора: юнгианская психология (тень, Самость, персона, анимус/анима, индивидуация), регрессивный взгляд (какой слой возраста/раннего опыта активирован) и архетипическое чтение клетки как образа, а не как приговора. Кратко, ясно, профессионально — без гуру-позы, без диагнозов и без эзотерической воды. Не выдумывай стрелы, змеи и номера клеток: только контекст партии. Клетка — зеркало запроса. Победа только на 68; короткие партии из-за 54→68 и 17→69 — закон поля. Ответ: 2–5 коротких предложений или один плотный абзац; в конце один точный вопрос игроку.";
 let hydrating=false;
 const $=id=>document.getElementById(id);
 function cellOrder(){
@@ -524,7 +528,7 @@ function liveCell(){
 function renderChat(){
   const box=$("chat-log"); if(!box) return;
   box.innerHTML="";
-  const msgs=state.chat.length?state.chat:[{role:"bot",text:GUIDE_HELLO}];
+  const msgs=state.chat.length?state.chat:[{role:"bot",text:guideOpening()}];
   msgs.forEach(m=>{
     const el=document.createElement("div");
     el.className="msg "+(m.role==="me"?"me":"bot");
@@ -532,6 +536,16 @@ function renderChat(){
     box.appendChild(el);
   });
   box.scrollTop=box.scrollHeight;
+}
+function guideOpening(){
+  const here=state.pos?DATA.cells[state.pos-1]:null;
+  if(here) return "Клетка "+here.n+" — «"+here.name+"». Можно разобрать её глубже: архетип, тень и связь с запросом.";
+  return GUIDE_HELLO;
+}
+function refreshGuideChat(){
+  state.chat=[];
+  if($("chat-input")) $("chat-input").value="";
+  renderChat();
 }
 function findCellRef(ql){
   const m=String(ql).match(/(?:клетк[ауие]\s*)?(?:№\s*)?([1-9]|[1-6]\d|7[0-2])\b/);
@@ -682,9 +696,9 @@ async function askDeepSeek(question){
   const body={
     model:"deepseek-chat",
     temperature:0.7,
-    max_tokens:700,
+    max_tokens:450,
     messages:[
-      {role:"system",content:"Ты проводник трансформационной игры Лила (самопознание, поле Хариша Джохари). Говори по-русски, тепло и точно, без гуру-позы и без диагнозов. Не выдумывай стрелы, змеи и номера клеток — опирайся только на переданный контекст партии. Клетка — зеркало запроса, не предсказание. Победа только на 68. Короткие партии из-за стрел 54→68 и 17→69 — закон поля, не баг. Ответ: 1–3 коротких абзаца, в конце один живой вопрос игроку."},
+      {role:"system",content:GUIDE_SYSTEM},
       {role:"user",content:"Контекст партии:\n"+context+"\n\nВопрос игрока: "+question}
     ]
   };
@@ -981,6 +995,7 @@ function applyRoll(r){
   }else if(out.moved){
     requireRead();
   }
+  if(out.moved) refreshGuideChat();
   highlight(); placeToken(state.pos); showCell(state.pos,transit); renderHistory();
   saveGame();
   out.pos=state.pos; return out;

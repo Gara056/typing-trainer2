@@ -289,6 +289,23 @@ function test(name, fn) {
     assert.ok(w.getState().chat.length >= 2);
   });
 
+  await test("guide chat refreshes after the next move", () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    w.sendGuide("что говорит эта клетка?");
+    assert.ok(w.getState().chat.length >= 2);
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("что говорит эта клетка?"));
+    w.liveCell();
+    w.applyRoll(2);
+    assert.strictEqual(w.getState().chat.length, 0);
+    const log = w.document.getElementById("chat-log").textContent;
+    assert.ok(!log.includes("что говорит эта клетка?"));
+    assert.ok(log.includes(String(w.getState().pos)));
+    assert.ok(w.document.querySelector(".guide-blurb"));
+    assert.ok(/юнгиан|архетип|тень|регресс/i.test(w.GUIDE_SYSTEM));
+  });
+
   await test("elemental charm sits on cell 68 without blocking the board", () => {
     const w = load();
     const charm = w.document.getElementById("charm");
