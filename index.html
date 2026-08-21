@@ -147,7 +147,8 @@ input[type=text]:disabled{opacity:.72;color:var(--gold-2)}
 #btn-live{background:transparent;color:var(--gold-2);border:1px solid var(--gold);display:none}
 #btn-live.show{display:inline-flex}
 .chat-log{max-height:min(420px,52vh);overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;flex:1;min-height:180px}
-.guide-blurb{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 12px}
+.guide-blurb{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 8px}
+.guide-left{font-size:12px;line-height:1.45;color:var(--gold-2);margin:0 0 12px}
 .msg{padding:10px 12px;border-radius:14px;font-size:13px;line-height:1.55;white-space:pre-wrap}
 .msg.me{align-self:flex-end;background:rgba(201,164,92,.16);border:1px solid var(--line);max-width:92%}
 .msg.bot{align-self:flex-start;background:rgba(8,6,4,.55);border:1px solid var(--line);max-width:100%}
@@ -290,7 +291,8 @@ button:disabled{opacity:.5;cursor:wait}
       </section>
       <section class="card" id="guide">
         <h2>Проводник</h2>
-        <p class="guide-blurb">Проводник поможет разобрать клетку глубже: какой архетип сейчас на сцене, какая тень и что поле говорит твоему запросу. После каждого хода можно спросить снова.</p>
+        <p class="guide-blurb">Проводник поможет разобрать клетку глубже — через архетип, тень и ранний слой опыта. На каждый ход до пяти вопросов: за них можно увидеть смысл хода, затем мягко идём к следующему броску.</p>
+        <p class="guide-left" id="guide-left">На этот ход доступно вопросов: 5 из 5.</p>
         <div id="chat-log" class="chat-log"></div>
         <form class="chat-form" id="chat-form">
           <input id="chat-input" type="text" maxlength="400" placeholder="Напиши проводнику…" autocomplete="off">
@@ -360,10 +362,12 @@ const CHARMS={
   air:{id:"air",name:"Перо",tattva:"Воздух",hint:"Вайю — дыхание и простор",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 16.2c5.6-.8 9.6-3.6 13.6-10.4" fill="none" stroke="#d8cbb8" stroke-width="1.5" stroke-linecap="round"/><path d="M8.2 15.2l2.8-3.8M11 14.2l2.8-4.4M13.8 12.4l2.6-3.6" fill="none" stroke="#d8cbb8" stroke-width="1.05" stroke-linecap="round"/></svg>'},
   ether:{id:"ether",name:"Кристалл",tattva:"Эфир",hint:"Акаша — пространство цели",svg:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.4l5.8 7.6L12 21.6 6.2 10z" fill="#b9a6d4"/><path d="M12 2.4l5.8 7.6H6.2z" fill="#e4daf2"/><path d="M8.2 10h7.6L12 21.6z" fill="#9a86bc"/></svg>'}
 };
-const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:""};
-const GUIDE_HELLO="Спроси про клетку, запрос, путь, стрелу или змею — своими словами.";
+const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:"",guideAsks:0};
+const GUIDE_ASK_MAX=5;
+const GUIDE_CLOSE="Суть этого хода уже прозвучала. Дай ей чуть дозреть в тебе — а дальше давай разберём следующий бросок. У тебя ещё будет время подумать над тем, что услышал.";
+const GUIDE_HELLO="Спроси про клетку и запрос — своими словами. Смотрим только архетип, тень и ранний слой опыта.";
 const GUIDE_SYSTEM=
-  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Опора: юнгианская психология (тень, Самость, персона, анимус/анима, индивидуация), регрессивный взгляд (какой слой возраста/раннего опыта активирован) и архетипическое чтение клетки как образа, а не как приговора. Кратко, ясно, профессионально — без гуру-позы, без диагнозов и без эзотерической воды. Не выдумывай стрелы, змеи и номера клеток: только контекст партии. Клетка — зеркало запроса. Победа только на 68; короткие партии из-за 54→68 и 17→69 — закон поля. Ответ: 2–5 коротких предложений или один плотный абзац; в конце один точный вопрос игроку.";
+  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Работай СТРОГО только в трёх оптиках: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (какой возраст/ранний опыт ожил); 3) архетипическая (клетка как образ/сцена, не приговор). Не уходи в эзотерику, нумерологию, предсказания, диагнозы и гуру-позу. Не выдумывай стрелы, змеи и номера клеток — только контекст партии. Клетка — зеркало запроса. Победа только на 68. Ответ краткий и профессиональный: 2–5 предложений. В контексте будет «Шаг диалога N/5» — веди игрока к сути ИМЕННО этого хода: 1 архетип клетки, 2 тень/персона, 3 регрессивный слой, 4 смысл хода для запроса, 5 сожми суть и мягко пригласи к следующему броску, оставив время подумать. На шаге 5 не открывай новую тему.";
 let hydrating=false;
 const $=id=>document.getElementById(id);
 function cellOrder(){
@@ -536,14 +540,47 @@ function renderChat(){
     box.appendChild(el);
   });
   box.scrollTop=box.scrollHeight;
+  paintGuideQuota();
 }
 function guideOpening(){
   const here=state.pos?DATA.cells[state.pos-1]:null;
-  if(here) return "Клетка "+here.n+" — «"+here.name+"». Можно разобрать её глубже: архетип, тень и связь с запросом.";
+  if(here) return "Клетка "+here.n+" — «"+here.name+"». До пяти вопросов: архетип, тень, ранний слой и смысл хода для твоего запроса.";
   return GUIDE_HELLO;
+}
+function guideAskCount(){
+  return Math.max(0, Math.min(GUIDE_ASK_MAX, Number(state.guideAsks)||0));
+}
+function guideTurnHint(n){
+  const steps=[
+    "1/5: архетипический образ клетки — какая фигура/сцена сейчас на поле.",
+    "2/5: тень и персона — что скрыто и что показано.",
+    "3/5: регрессивный слой — какой возраст или ранний опыт ожил.",
+    "4/5: смысл этого хода для запроса игрока.",
+    "5/5: сожми суть хода и мягко пригласи к следующему броску, оставив время подумать."
+  ];
+  return steps[Math.min(Math.max(n,1),5)-1];
+}
+function paintGuideQuota(){
+  const left=$("guide-left");
+  const input=$("chat-input");
+  const btn=$("chat-form")&&$("chat-form").querySelector('button[type="submit"]');
+  const used=guideAskCount();
+  const remain=Math.max(0, GUIDE_ASK_MAX-used);
+  const locked=remain<=0;
+  if(left){
+    left.textContent=locked
+      ?"На этот ход лимит вопросов исчерпан. Проживи клетку и бросай дальше — к новому ходу разговор откроется снова."
+      :"На этот ход осталось вопросов: "+remain+" из "+GUIDE_ASK_MAX+".";
+  }
+  if(input){
+    input.disabled=locked;
+    input.placeholder=locked?"Сначала сделай следующий ход…":"Напиши проводнику…";
+  }
+  if(btn) btn.disabled=locked;
 }
 function refreshGuideChat(){
   state.chat=[];
+  state.guideAsks=0;
   if($("chat-input")) $("chat-input").value="";
   renderChat();
 }
@@ -662,11 +699,14 @@ function buildGuideContext(question){
   const look=state.look?DATA.cells[state.look-1]:null;
   const named=findCellRef(String(question||"").toLowerCase());
   const charm=CHARMS[state.charm];
+  const turn=Math.min(GUIDE_ASK_MAX, Math.max(1, guideAskCount()||1));
   const parts=[
     "Запрос игрока: "+(q||"(не сформулирован)"),
     "Позиция: "+(here?here.n+" «"+here.name+"»":"вне поля, ждёт 6"),
     "Путь: "+(pathLine()||"ещё не начался"),
     charm?"Талисман на 68: "+charm.tattva+" («"+charm.name+"»)":"Талисман не выбран",
+    "Шаг диалога: "+turn+"/"+GUIDE_ASK_MAX+". "+guideTurnHint(turn),
+    "Оптики только: юнгианская, регрессивная, архетипическая.",
     "Правила: вход только с 6 на клетку 6 «Заблуждение»; победа только на 68; 69–71 не финиш; 72 змея на 51. Стрелы: "+DATA.arrows.map(a=>a[0]+"→"+a[1]).join(", ")+". Змеи: "+DATA.snakes.map(a=>a[0]+"→"+a[1]).join(", ")+"."
   ];
   if(named) parts.push("Упомянутая клетка:\n"+cellBrief(named));
@@ -719,36 +759,36 @@ function sendGuide(text){
   const q=String(text||($("chat-input")&&$("chat-input").value)||"").trim();
   if(!q) return Promise.resolve("");
   if($("chat-input")) $("chat-input").value="";
+  if(guideAskCount()>=GUIDE_ASK_MAX){
+    const last=state.chat[state.chat.length-1];
+    if(!last||last.text!==GUIDE_CLOSE){
+      state.chat.push({role:"bot",text:GUIDE_CLOSE});
+      renderChat();
+      saveGame();
+    }else paintGuideQuota();
+    return Promise.resolve(GUIDE_CLOSE);
+  }
+  state.guideAsks=guideAskCount()+1;
+  const turn=state.guideAsks;
   state.chat.push({role:"me",text:q});
-  if(!guideOnline()){
-    const answer=guideAsk(q);
-    state.chat.push({role:"bot",text:answer});
+  const finish=(answer)=>{
+    let text=String(answer||"").trim();
+    if(turn>=GUIDE_ASK_MAX) text=(text?text+"\n\n":"")+GUIDE_CLOSE;
+    const last=state.chat[state.chat.length-1];
+    if(last&&last.role==="bot"&&last.text===AI_THINK) last.text=text;
+    else state.chat.push({role:"bot",text:text});
     if(state.chat.length>40) state.chat=state.chat.slice(-40);
     renderChat();
     saveGame();
-    return Promise.resolve(answer);
+    return text;
+  };
+  if(!guideOnline()){
+    return Promise.resolve(finish(guideAsk(q)));
   }
   state.chat.push({role:"bot",text:AI_THINK});
   renderChat();
   saveGame();
-  return askDeepSeek(q).then(answer=>{
-    const last=state.chat[state.chat.length-1];
-    if(last&&last.role==="bot") last.text=answer;
-    else state.chat.push({role:"bot",text:answer});
-    if(state.chat.length>40) state.chat=state.chat.slice(-40);
-    renderChat();
-    saveGame();
-    return answer;
-  }).catch(()=>{
-    const fallback=guideAsk(q);
-    const last=state.chat[state.chat.length-1];
-    if(last&&last.role==="bot") last.text=fallback;
-    else state.chat.push({role:"bot",text:fallback});
-    if(state.chat.length>40) state.chat=state.chat.slice(-40);
-    renderChat();
-    saveGame();
-    return fallback;
-  });
+  return askDeepSeek(q).then(finish).catch(()=>finish(guideAsk(q)));
 }
 function snapshot(){
   return {
@@ -762,6 +802,7 @@ function snapshot(){
     dice:+($("dice").dataset.face||0),
     chat:state.chat.slice(-40),
     charm:state.charm||"",
+    guideAsks:guideAskCount(),
     savedAt:Date.now()
   };
 }
@@ -790,6 +831,9 @@ function loadGame(){
     state.rolling=false;
     state.chat=Array.isArray(s.chat)?s.chat.filter(m=>m&&(m.role==="me"||m.role==="bot")&&typeof m.text==="string").slice(-40):[];
     state.charm=CHARMS[s.charm]?s.charm:"";
+    state.guideAsks=typeof s.guideAsks==="number"
+      ? Math.max(0, Math.min(GUIDE_ASK_MAX, s.guideAsks|0))
+      : Math.min(GUIDE_ASK_MAX, state.chat.filter(m=>m.role==="me").length);
     $("query").value=s.query||"";
     $("query").disabled=state.queryLocked;
     setDiceFace(s.dice||0);
@@ -1022,7 +1066,7 @@ function roll(){
   },55);
 }
 function resetGame(){
-  state.pos=0; state.history=[]; state.won=false; state.rolling=false; state.queryLocked=false; state.look=0; state.mustRead=false; state.chat=[]; state.charm="";
+  state.pos=0; state.history=[]; state.won=false; state.rolling=false; state.queryLocked=false; state.look=0; state.mustRead=false; state.chat=[]; state.charm=""; state.guideAsks=0;
   const q=$("query"); q.disabled=false; q.value="";
   $("btn-roll").disabled=false;
   $("btn-live").classList.remove("show");
@@ -1038,7 +1082,7 @@ function resetGame(){
   applyCharm();
   try{ localStorage.removeItem(STORE); }catch(e){}
 }
-function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked,mustRead:state.mustRead,chat:state.chat.slice(),charm:state.charm};}
+function getState(){return {pos:state.pos,history:state.history.slice(),won:state.won,rolling:state.rolling,queryLocked:state.queryLocked,mustRead:state.mustRead,chat:state.chat.slice(),charm:state.charm,guideAsks:guideAskCount()};}
 function init(){
   buildDice(); buildBoard(); buildCharms(); applyCharm(); setDiceFace(0);
   $("btn-roll").addEventListener("click",roll);
@@ -1075,11 +1119,12 @@ window.showCell=showCell; window.setDiceFace=setDiceFace; window.getState=getSta
 window.buildFinale=buildFinale; window.liveCell=liveCell;
 window.saveGame=saveGame; window.loadGame=loadGame; window.STORE=STORE;
 window.buildFinaleDocument=buildFinaleDocument; window.buildFinaleText=buildFinaleText;
-window.guideAsk=guideAsk; window.sendGuide=sendGuide;
+window.guideAsk=guideAsk; window.sendGuide=sendGuide; window.refreshGuideChat=refreshGuideChat;
 window.setCharm=setCharm; window.CHARMS=CHARMS;
 window.getAiKey=getAiKey; window.setAiKey=setAiKey; window.askDeepSeek=askDeepSeek;
 window.buildGuideContext=buildGuideContext; window.AI_STORE=AI_STORE;
-window.getGuideApi=getGuideApi; window.paintAiStatus=paintAiStatus;
+window.getGuideApi=getGuideApi; window.paintAiStatus=paintAiStatus; window.GUIDE_SYSTEM=GUIDE_SYSTEM;
+window.GUIDE_ASK_MAX=GUIDE_ASK_MAX; window.GUIDE_CLOSE=GUIDE_CLOSE; window.paintGuideQuota=paintGuideQuota;
 </script>
 </body>
 </html>

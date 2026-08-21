@@ -299,11 +299,31 @@ function test(name, fn) {
     w.liveCell();
     w.applyRoll(2);
     assert.strictEqual(w.getState().chat.length, 0);
+    assert.strictEqual(w.getState().guideAsks, 0);
     const log = w.document.getElementById("chat-log").textContent;
     assert.ok(!log.includes("что говорит эта клетка?"));
     assert.ok(log.includes(String(w.getState().pos)));
     assert.ok(w.document.querySelector(".guide-blurb"));
     assert.ok(/юнгиан|архетип|тень|регресс/i.test(w.GUIDE_SYSTEM));
+  });
+
+  await test("guide allows five questions per move then invites the next roll", async () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    for (let i = 1; i <= 5; i++) {
+      await w.sendGuide("вопрос " + i);
+      assert.strictEqual(w.getState().guideAsks, i);
+    }
+    const afterFive = w.document.getElementById("chat-log").textContent;
+    assert.ok(afterFive.includes(w.GUIDE_CLOSE));
+    assert.ok(w.document.getElementById("chat-input").disabled);
+    const sixth = await w.sendGuide("ещё вопрос");
+    assert.strictEqual(sixth, w.GUIDE_CLOSE);
+    assert.strictEqual(w.getState().guideAsks, 5);
+    assert.ok(!w.document.getElementById("chat-log").textContent.includes("ещё вопрос"));
+    const ctx = w.buildGuideContext("вопрос");
+    assert.ok(ctx.includes("5/" + w.GUIDE_ASK_MAX) || ctx.includes("Шаг диалога"));
   });
 
   await test("elemental charm sits on cell 68 without blocking the board", () => {
