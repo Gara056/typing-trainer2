@@ -4,6 +4,16 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 
+function cleanSecret(value) {
+  let v = String(value || "")
+    .replace(/^\uFEFF/, "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .trim();
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1).trim();
+  if (/^bearer\s+/i.test(v)) v = v.replace(/^bearer\s+/i, "").trim();
+  return v;
+}
+
 function loadDotEnv(file) {
   const p = path.resolve(file);
   if (!fs.existsSync(p)) return false;
@@ -14,8 +24,7 @@ function loadDotEnv(file) {
     const i = t.indexOf("=");
     if (i < 1) continue;
     const k = t.slice(0, i).trim();
-    let v = t.slice(i + 1).trim();
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+    let v = cleanSecret(t.slice(i + 1));
     if (process.env[k] == null || process.env[k] === "") process.env[k] = v;
   }
   return true;
@@ -106,7 +115,7 @@ function createGuide(opts) {
   }
 
   async function complete(payload) {
-    const key = String(getKey() || "").trim();
+    const key = cleanSecret(getKey());
     if (!key) {
       const err = new Error("На сервере нет ключа DeepSeek");
       err.status = 503;
@@ -135,16 +144,19 @@ function createGuide(opts) {
       }),
     });
     if (res.status === 401) {
+      console.error("DeepSeek rejected API key (HTTP 401). Check DEEPSEEK_API_KEY in .env");
       const err = new Error("ключ DeepSeek не принят");
       err.status = 502;
       throw err;
     }
     if (res.status === 402) {
+      console.error("DeepSeek billing/insufficient balance (HTTP 402)");
       const err = new Error("на счёте DeepSeek нет средств");
       err.status = 502;
       throw err;
     }
     if (!res.ok) {
+      console.error("DeepSeek HTTP " + res.status);
       const err = new Error("DeepSeek ответил " + res.status);
       err.status = 502;
       throw err;
@@ -243,6 +255,6 @@ function listen(opts) {
   return server;
 }
 
-module.exports = { createGuide, listen, loadDotEnv, SYSTEM_PROMPT, LIMITS };
+module.exports = { createGuide, listen, loadDotEnv, cleanSecret, SYSTEM_PROMPT, LIMITS };
 
 if (require.main === module) listen();

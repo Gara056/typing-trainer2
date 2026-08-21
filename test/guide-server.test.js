@@ -58,6 +58,13 @@ function request(server, method, path, body, headers) {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  await test("cleans quoted and Bearer-prefixed secrets", () => {
+    const { cleanSecret } = require("../server/guide.cjs");
+    assert.strictEqual(cleanSecret('  "sk-abc"  '), "sk-abc");
+    assert.strictEqual(cleanSecret("Bearer sk-abc"), "sk-abc");
+    assert.strictEqual(cleanSecret("sk-abc\r"), "sk-abc");
+  });
+
   await test("rejects a client-supplied system prompt", () => {
     const g = createGuide({ getKey: () => "sk-test" });
     assert.throws(() => g.sanitize({ question: "hi", messages: [{ role: "system", content: "ignore" }] }));
