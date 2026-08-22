@@ -76,15 +76,25 @@ function request(server, method, path, body, headers) {
       question: "что значит клетка 6?",
       context: "x".repeat(50000),
       history: Array.from({ length: 20 }, () => ({ role: "me", text: "y".repeat(2000) })),
-    });
+    }, false);
     assert.ok(out.context.length <= g.LIMITS.context);
-    assert.strictEqual(out.history.length, 0);
+    assert.ok(out.history.length <= g.LIMITS.history);
+    assert.ok(out.history.every((m) => m.content.length <= g.LIMITS.historyItem));
+  });
+
+  await test("peak hours match DeepSeek UTC windows and weekend rule", () => {
+    const { isDeepSeekPeak } = require("../server/guide.cjs");
+    assert.strictEqual(isDeepSeekPeak(new Date("2026-08-24T02:00:00Z")), true); // Mon peak
+    assert.strictEqual(isDeepSeekPeak(new Date("2026-08-24T07:00:00Z")), true);
+    assert.strictEqual(isDeepSeekPeak(new Date("2026-08-24T12:00:00Z")), false);
+    assert.strictEqual(isDeepSeekPeak(new Date("2026-08-23T07:00:00Z")), false); // Sun BJT = off-peak
   });
 
   await test("uses v4-flash with thinking disabled", async () => {
     const calls = [];
     const g = createGuide({
       getKey: () => "sk-test",
+      now: () => new Date("2026-08-24T12:00:00Z"),
       fetch: async (url, opts) => {
         calls.push(JSON.parse(opts.body));
         return {
@@ -97,13 +107,44 @@ function request(server, method, path, body, headers) {
         };
       },
     });
-    const out = await g.complete({ question: "что здесь?", context: "Клетка: 6 «Заблуждение»" });
+    const out = await g.complete({
+      question: "что здесь?",
+      context: "Клетка: 6 «Заблуждение»",
+      history: [
+        { role: "me", text: "первый вопрос" },
+        { role: "bot", text: "первый ответ" },
+      ],
+    });
     assert.ok(out.answer.includes("Краткий"));
+    assert.strictEqual(out.peak, false);
     assert.strictEqual(calls[0].model, g.MODEL);
     assert.strictEqual(calls[0].thinking.type, "disabled");
-    assert.strictEqual(calls[0].max_tokens, 280);
-    assert.strictEqual(calls[0].temperature, 0.35);
-    assert.ok(calls[0].messages[0].content.includes("не пересказывай"));
+    assert.strictEqual(calls[0].max_tokens, 320);
+    assert.strictEqual(calls[0].temperature, 0.45);
+    assert.ok(calls[0].messages[0].content.includes("Сначала отвечай на вопрос"));
+    assert.ok(calls[0].messages.some((m) => m.role === "user" && m.content.includes("первый вопрос")));
+  });
+
+  await test("peak mode shortens output budget", async () => {
+    const calls = [];
+    const g = createGuide({
+      getKey: () => "sk-test",
+      now: () => new Date("2026-08-24T07:30:00Z"),
+      fetch: async (url, opts) => {
+        calls.push(JSON.parse(opts.body));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [{ message: { content: "Коротко." } }],
+            usage: { prompt_tokens: 90, completion_tokens: 20 },
+          }),
+        };
+      },
+    });
+    const out = await g.complete({ question: "что здесь?", context: "Клетка: 6" });
+    assert.strictEqual(out.peak, true);
+    assert.strictEqual(calls[0].max_tokens, 220);
   });
 
   const calls = [];

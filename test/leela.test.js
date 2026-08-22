@@ -326,8 +326,9 @@ function test(name, fn) {
     assert.ok(!w.document.getElementById("chat-log").textContent.includes("ещё вопрос"));
     const ctx = w.buildGuideContextLite("вопрос");
     assert.ok(ctx.includes("3/" + w.GUIDE_ASK_MAX));
-    assert.ok(!ctx.includes("Психология:"));
-    assert.ok(ctx.length < 800);
+    assert.ok(ctx.includes("Психоякорь"));
+    assert.ok(ctx.includes("Вопрос игрока сейчас"));
+    assert.ok(ctx.length < 1400);
   });
 
   await test("elemental charm sits on cell 68 without blocking the board", () => {
@@ -365,6 +366,7 @@ function test(name, fn) {
     const ctx = w.buildGuideContextLite("клетка 6");
     assert.ok(ctx.includes("мой выбор"));
     assert.ok(ctx.includes("Заблуждение"));
+    assert.ok(ctx.includes("Психоякорь"));
     assert.ok(!ctx.includes("Психология:"));
     assert.strictEqual(w.getAiKey(), "");
 
@@ -384,8 +386,9 @@ function test(name, fn) {
     const body = JSON.parse(sent.opts.body);
     assert.strictEqual(body.model, w.GUIDE_MODEL);
     assert.strictEqual(body.thinking.type, "disabled");
-    assert.strictEqual(body.max_tokens, 280);
-    assert.ok(body.messages[1].content.includes("мой выбор"));
+    assert.ok(body.max_tokens === 220 || body.max_tokens === 320);
+    assert.ok(body.messages[0].content.includes("Сначала отвечай на вопрос"));
+    assert.ok(body.messages.some((m) => m.content && m.content.includes("мой выбор")));
     assert.ok(w.document.getElementById("chat-log").textContent.includes("Зеркало мохи"));
     assert.ok(!w.localStorage.getItem(w.STORE).includes("sk-test-leela"));
 
@@ -416,7 +419,6 @@ function test(name, fn) {
     assert.ok(body.question);
     assert.ok(body.context.includes("мой выбор"));
     assert.ok(Array.isArray(body.history));
-    assert.strictEqual(body.history.length, 0);
     assert.ok(!body.messages);
     assert.ok(w.document.getElementById("chat-log").textContent.includes("Сервер разобрал"));
     assert.ok(w.getGuideApi());

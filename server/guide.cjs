@@ -33,21 +33,35 @@ function loadDotEnv(file) {
 loadDotEnv(path.join(__dirname, "..", ".env"));
 
 const SYSTEM_PROMPT =
-  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Работай СТРОГО только в трёх оптиках: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (какой возраст/ранний опыт ожил); 3) архетипическая (клетка как образ/сцена, не приговор). Не уходи в эзотерику, нумерологию, предсказания, диагнозы и гуру-позу. Не выдумывай стрелы, змеи и номера клеток — только контекст партии. Текст клетки игрок уже видит на экране — не пересказывай карточку, не цитируй ведический и психологический слой. Клетка — зеркало запроса. Победа только на 68. Ответ краткий: 2–4 предложения. В контексте «Шаг N/3» — веди к сути ЭТОГО шага: 1 архетип клетки, 2 тень/персона, 3 регрессивный слой и смысл для запроса — сожми и мягко пригласи к следующему броску. На шаге 3 не открывай новую тему.";
+  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Сначала отвечай на вопрос игрока; шаг N/3 — только линза, не сценарий. Три оптики: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (возраст/ранний опыт); 3) архетипическая (клетка как образ/сцена, не приговор). Не эзотерика, не нумерология, не предсказания, не диагнозы, не гуру-поза. Не выдумывай стрелы/змеи/номера. Не пересказывай карточку клетки и не цитируй якорь дословно. Не повторяй прошлые ответы — если уже сказано, углуби или смести акцент. Свяжи клетку с запросом партии. 3–5 предложений, конкретно. Шаги: 1 архетип, 2 тень/персона, 3 регрессия + смысл для запроса и мягко к следующему броску. На шаге 3 новую тему не открывай.";
 
 const LIMITS = {
   question: 400,
-  context: 2500,
-  history: 0,
-  historyItem: 500,
-  body: 12000,
+  context: 3200,
+  history: 4,
+  historyItem: 280,
+  body: 16000,
   windowMs: 10 * 60 * 1000,
   maxPerWindow: 12,
-  maxTokens: Number(process.env.GUIDE_MAX_TOKENS) || 280,
-  temperature: Number(process.env.GUIDE_TEMPERATURE) || 0.35,
+  maxTokensOffPeak: Number(process.env.GUIDE_MAX_TOKENS) || 320,
+  maxTokensPeak: Number(process.env.GUIDE_MAX_TOKENS_PEAK) || 220,
+  temperature: Number(process.env.GUIDE_TEMPERATURE) || 0.45,
 };
 
 const MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+
+// DeepSeek peak hours (UTC): 01:00–04:00 and 06:00–10:00. From 2026-08-23 Beijing
+// weekends are off-peak all day. Peak ≈ 2× off-peak.
+const WEEKEND_OFFPEAK_FROM = Date.UTC(2026, 7, 22, 16, 0, 0); // 00:00 BJT Aug 23
+
+function isDeepSeekPeak(now) {
+  const d = now instanceof Date ? now : new Date(now || Date.now());
+  const utc = d.getUTCHours() + d.getUTCMinutes() / 60;
+  const bj = new Date(d.getTime() + 8 * 3600 * 1000);
+  const weekend = bj.getUTCDay() === 0 || bj.getUTCDay() === 6;
+  if (weekend && d.getTime() >= WEEKEND_OFFPEAK_FROM) return false;
+  return (utc >= 1 && utc < 4) || (utc >= 6 && utc < 10);
+}
 
 function clip(value, max) {
   return String(value || "").trim().slice(0, max);
@@ -64,11 +78,12 @@ function clientIp(req) {
   return fwd || req.socket.remoteAddress || "unknown";
 }
 
-function logUsage(data) {
+function logUsage(data, meta) {
   const u = data && data.usage;
   if (!u) return;
   const row = {
     model: MODEL,
+    peak: !!(meta && meta.peak),
     prompt: u.prompt_tokens,
     completion: u.completion_tokens,
     cached: u.prompt_cache_hit_tokens || u.prompt_tokens_details?.cached_tokens || 0,
@@ -83,10 +98,11 @@ function createGuide(opts) {
   const fetchImpl = opts.fetch || fetch;
   const getKey = opts.getKey || (() => process.env.DEEPSEEK_API_KEY || "");
   const allowOrigin = opts.allowOrigin || process.env.GUIDE_ORIGIN || "*";
+  const nowFn = opts.now || (() => new Date());
   const hits = new Map();
 
   function limited(ip, now) {
-    const t = now || Date.now();
+    const t = (now && now.getTime) ? now.getTime() : Date.now();
     const row = (hits.get(ip) || []).filter((x) => t - x < LIMITS.windowMs);
     if (row.length >= LIMITS.maxPerWindow) {
       hits.set(ip, row);
@@ -110,7 +126,7 @@ function createGuide(opts) {
     return headers;
   }
 
-  function sanitize(payload) {
+  function sanitize(payload, peak) {
     const question = clip(payload && payload.question, LIMITS.question);
     if (question.length < 2) {
       const err = new Error("Нужен вопрос");
@@ -118,8 +134,9 @@ function createGuide(opts) {
       throw err;
     }
     const context = clip(payload && payload.context, LIMITS.context);
-    const history = LIMITS.history > 0 && Array.isArray(payload && payload.history)
-      ? payload.history.slice(-LIMITS.history).map((m) => ({
+    const histMax = peak ? 2 : LIMITS.history;
+    const history = histMax > 0 && Array.isArray(payload && payload.history)
+      ? payload.history.slice(-histMax).map((m) => ({
           role: m && m.role === "me" ? "user" : "assistant",
           content: clip(m && (m.text || m.content), LIMITS.historyItem),
         })).filter((m) => m.content)
@@ -139,7 +156,8 @@ function createGuide(opts) {
       err.status = 503;
       throw err;
     }
-    const { question, context, history } = sanitize(payload);
+    const peak = isDeepSeekPeak(nowFn());
+    const { question, context, history } = sanitize(payload, peak);
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
       ...history,
@@ -148,6 +166,7 @@ function createGuide(opts) {
         content: "Контекст партии:\n" + (context || "(нет)") + "\n\nВопрос игрока: " + question,
       },
     ];
+    const maxTokens = peak ? LIMITS.maxTokensPeak : LIMITS.maxTokensOffPeak;
     const res = await fetchImpl("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
@@ -157,7 +176,7 @@ function createGuide(opts) {
       body: JSON.stringify({
         model: MODEL,
         temperature: LIMITS.temperature,
-        max_tokens: LIMITS.maxTokens,
+        max_tokens: maxTokens,
         thinking: { type: "disabled" },
         messages,
       }),
@@ -181,7 +200,7 @@ function createGuide(opts) {
       throw err;
     }
     const data = await res.json();
-    logUsage(data);
+    logUsage(data, { peak });
     const msg = (((data.choices || [])[0] || {}).message || {});
     const text = String(msg.content || "").trim();
     if (!text) {
@@ -189,7 +208,7 @@ function createGuide(opts) {
       err.status = 502;
       throw err;
     }
-    return { answer: text };
+    return { answer: text, peak };
   }
 
   function readBody(req) {
@@ -231,10 +250,12 @@ function createGuide(opts) {
     }
     const url = new URL(req.url || "/", "http://localhost");
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/api/guide" || url.pathname === "/api/guide/health")) {
+      const peak = isDeepSeekPeak(nowFn());
       send(200, {
         ok: true,
         service: "leela-guide",
         model: MODEL,
+        peak,
         deepseek: Boolean(String(getKey() || "").trim()),
       });
       return;
@@ -247,7 +268,7 @@ function createGuide(opts) {
       send(403, { error: "origin" });
       return;
     }
-    if (limited(clientIp(req))) {
+    if (limited(clientIp(req), nowFn())) {
       send(429, { error: "too many requests" });
       return;
     }
@@ -260,7 +281,19 @@ function createGuide(opts) {
     }
   }
 
-  return { handle, complete, sanitize, limited, cors, hits, SYSTEM_PROMPT, LIMITS, MODEL, logUsage };
+  return {
+    handle,
+    complete,
+    sanitize,
+    limited,
+    cors,
+    hits,
+    SYSTEM_PROMPT,
+    LIMITS,
+    MODEL,
+    logUsage,
+    isDeepSeekPeak,
+  };
 }
 
 function listen(opts) {
@@ -270,13 +303,29 @@ function listen(opts) {
   const guide = createGuide(opts || {});
   const server = http.createServer(guide.handle);
   server.listen(port, host, () => {
+    const peak = isDeepSeekPeak();
     console.log("Leela guide on http://" + host + ":" + port + "/api/guide");
-    console.log("Model: " + MODEL + " · thinking disabled · max_tokens " + LIMITS.maxTokens);
+    console.log(
+      "Model: " + MODEL +
+      " · thinking disabled · off-peak max_tokens " + LIMITS.maxTokensOffPeak +
+      " · peak max_tokens " + LIMITS.maxTokensPeak +
+      " · now " + (peak ? "PEAK (×2)" : "off-peak")
+    );
     console.log(key ? "DEEPSEEK_API_KEY: loaded (" + key.length + " chars)" : "DEEPSEEK_API_KEY: missing — copy .env.example to .env");
   });
   return server;
 }
 
-module.exports = { createGuide, listen, loadDotEnv, cleanSecret, SYSTEM_PROMPT, LIMITS, MODEL, logUsage };
+module.exports = {
+  createGuide,
+  listen,
+  loadDotEnv,
+  cleanSecret,
+  SYSTEM_PROMPT,
+  LIMITS,
+  MODEL,
+  logUsage,
+  isDeepSeekPeak,
+};
 
 if (require.main === module) listen();
