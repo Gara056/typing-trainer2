@@ -450,6 +450,8 @@ function test(name, fn) {
     assert.ok(pdf.includes("Вопрос на подумать"));
     assert.ok(pdf.includes("мой выбор"));
     assert.ok(pdf.includes(insight.keyQuestion));
+    assert.ok(!pdf.includes("проводник прошёл"));
+    assert.ok(!pdf.includes("сжатое зеркало партии"));
   });
 
   if (process.exitCode) {
