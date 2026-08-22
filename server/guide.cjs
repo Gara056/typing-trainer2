@@ -33,18 +33,21 @@ function loadDotEnv(file) {
 loadDotEnv(path.join(__dirname, "..", ".env"));
 
 const SYSTEM_PROMPT =
-  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Работай СТРОГО только в трёх оптиках: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (какой возраст/ранний опыт ожил); 3) архетипическая (клетка как образ/сцена, не приговор). Не уходи в эзотерику, нумерологию, предсказания, диагнозы и гуру-позу. Не выдумывай стрелы, змеи и номера клеток — только контекст партии. Клетка — зеркало запроса. Победа только на 68. Ответ краткий и профессиональный: 2–5 предложений. В контексте будет «Шаг диалога N/5» — веди к сути ИМЕННО этого хода: 1 архетип, 2 тень/персона, 3 регрессивный слой, 4 смысл хода для запроса, 5 сожми суть и мягко пригласи к следующему броску, оставив время подумать. На шаге 5 не открывай новую тему.";
+  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Работай СТРОГО только в трёх оптиках: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (какой возраст/ранний опыт ожил); 3) архетипическая (клетка как образ/сцена, не приговор). Не уходи в эзотерику, нумерологию, предсказания, диагнозы и гуру-позу. Не выдумывай стрелы, змеи и номера клеток — только контекст партии. Текст клетки игрок уже видит на экране — не пересказывай карточку, не цитируй ведический и психологический слой. Клетка — зеркало запроса. Победа только на 68. Ответ краткий: 2–4 предложения. В контексте «Шаг N/5» — веди к сути ЭТОГО шага: 1 архетип, 2 тень/персона, 3 регрессивный слой, 4 смысл для запроса, 5 сожми и мягко к следующему броску. На шаге 5 не открывай новую тему.";
 
 const LIMITS = {
   question: 400,
-  context: 12000,
-  history: 8,
+  context: 2500,
+  history: 0,
   historyItem: 500,
-  body: 20000,
+  body: 12000,
   windowMs: 10 * 60 * 1000,
   maxPerWindow: 12,
-  maxTokens: 420,
+  maxTokens: Number(process.env.GUIDE_MAX_TOKENS) || 280,
+  temperature: Number(process.env.GUIDE_TEMPERATURE) || 0.35,
 };
+
+const MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
 
 function clip(value, max) {
   return String(value || "").trim().slice(0, max);
@@ -59,6 +62,21 @@ function originAllowed(origin, allow) {
 function clientIp(req) {
   const fwd = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
   return fwd || req.socket.remoteAddress || "unknown";
+}
+
+function logUsage(data) {
+  const u = data && data.usage;
+  if (!u) return;
+  const row = {
+    model: MODEL,
+    prompt: u.prompt_tokens,
+    completion: u.completion_tokens,
+    cached: u.prompt_cache_hit_tokens || u.prompt_tokens_details?.cached_tokens || 0,
+  };
+  if (data.usage.completion_tokens_details?.reasoning_tokens) {
+    row.reasoning = data.usage.completion_tokens_details.reasoning_tokens;
+  }
+  console.log("[guide] usage " + JSON.stringify(row));
 }
 
 function createGuide(opts) {
@@ -100,7 +118,7 @@ function createGuide(opts) {
       throw err;
     }
     const context = clip(payload && payload.context, LIMITS.context);
-    const history = Array.isArray(payload && payload.history)
+    const history = LIMITS.history > 0 && Array.isArray(payload && payload.history)
       ? payload.history.slice(-LIMITS.history).map((m) => ({
           role: m && m.role === "me" ? "user" : "assistant",
           content: clip(m && (m.text || m.content), LIMITS.historyItem),
@@ -137,9 +155,10 @@ function createGuide(opts) {
         Authorization: "Bearer " + key,
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
-        temperature: 0.7,
+        model: MODEL,
+        temperature: LIMITS.temperature,
         max_tokens: LIMITS.maxTokens,
+        thinking: { type: "disabled" },
         messages,
       }),
     });
@@ -162,14 +181,15 @@ function createGuide(opts) {
       throw err;
     }
     const data = await res.json();
-    const text = (((data.choices || [])[0] || {}).message || {}).content || "";
-    const answer = String(text).trim();
-    if (!answer) {
+    logUsage(data);
+    const msg = (((data.choices || [])[0] || {}).message || {});
+    const text = String(msg.content || "").trim();
+    if (!text) {
       const err = new Error("пустой ответ модели");
       err.status = 502;
       throw err;
     }
-    return { answer };
+    return { answer: text };
   }
 
   function readBody(req) {
@@ -214,6 +234,7 @@ function createGuide(opts) {
       send(200, {
         ok: true,
         service: "leela-guide",
+        model: MODEL,
         deepseek: Boolean(String(getKey() || "").trim()),
       });
       return;
@@ -239,7 +260,7 @@ function createGuide(opts) {
     }
   }
 
-  return { handle, complete, sanitize, limited, cors, hits, SYSTEM_PROMPT, LIMITS };
+  return { handle, complete, sanitize, limited, cors, hits, SYSTEM_PROMPT, LIMITS, MODEL, logUsage };
 }
 
 function listen(opts) {
@@ -250,11 +271,12 @@ function listen(opts) {
   const server = http.createServer(guide.handle);
   server.listen(port, host, () => {
     console.log("Leela guide on http://" + host + ":" + port + "/api/guide");
+    console.log("Model: " + MODEL + " · thinking disabled · max_tokens " + LIMITS.maxTokens);
     console.log(key ? "DEEPSEEK_API_KEY: loaded (" + key.length + " chars)" : "DEEPSEEK_API_KEY: missing — copy .env.example to .env");
   });
   return server;
 }
 
-module.exports = { createGuide, listen, loadDotEnv, cleanSecret, SYSTEM_PROMPT, LIMITS };
+module.exports = { createGuide, listen, loadDotEnv, cleanSecret, SYSTEM_PROMPT, LIMITS, MODEL, logUsage };
 
 if (require.main === module) listen();

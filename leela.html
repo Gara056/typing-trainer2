@@ -382,7 +382,8 @@ const GUIDE_ASK_MAX=5;
 const GUIDE_CLOSE="Суть этого хода уже прозвучала. Дай ей чуть дозреть в тебе — а дальше давай разберём следующий бросок. У тебя ещё будет время подумать над тем, что услышал.";
 const GUIDE_HELLO="Спроси про клетку и запрос — своими словами. Смотрим только архетип, тень и ранний слой опыта.";
 const GUIDE_SYSTEM=
-  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Работай СТРОГО только в трёх оптиках: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (какой возраст/ранний опыт ожил); 3) архетипическая (клетка как образ/сцена, не приговор). Не уходи в эзотерику, нумерологию, предсказания, диагнозы и гуру-позу. Не выдумывай стрелы, змеи и номера клеток — только контекст партии. Клетка — зеркало запроса. Победа только на 68. Ответ краткий и профессиональный: 2–5 предложений. В контексте будет «Шаг диалога N/5» — веди игрока к сути ИМЕННО этого хода: 1 архетип клетки, 2 тень/персона, 3 регрессивный слой, 4 смысл хода для запроса, 5 сожми суть и мягко пригласи к следующему броску, оставив время подумать. На шаге 5 не открывай новую тему.";
+  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Работай СТРОГО только в трёх оптиках: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (какой возраст/ранний опыт ожил); 3) архетипическая (клетка как образ/сцена, не приговор). Не уходи в эзотерику, нумерологию, предсказания, диагнозы и гуру-позу. Не выдумывай стрелы, змеи и номера клеток — только контекст партии. Текст клетки игрок уже видит на экране — не пересказывай карточку, не цитируй ведический и психологический слой. Клетка — зеркало запроса. Победа только на 68. Ответ краткий: 2–4 предложения. В контексте «Шаг N/5» — веди к сути ЭТОГО шага: 1 архетип, 2 тень/персона, 3 регрессивный слой, 4 смысл для запроса, 5 сожми и мягко к следующему броску. На шаге 5 не открывай новую тему.";
+const GUIDE_MODEL="deepseek-v4-flash";
 let hydrating=false;
 const $=id=>document.getElementById(id);
 function cellOrder(){
@@ -792,42 +793,58 @@ function getGuideApi(){
 }
 function guideOnline(){ return !!(getGuideApi()||getAiKey()); }
 function paintAiStatus(){}
-function cellBrief(c){
-  if(!c) return "";
-  const extra=DATA.psych[String(c.n)]||"";
-  const qs=(c.q||[]).join(" / ");
-  return "Клетка "+c.n+" «"+c.name+"» ("+c.sk+"). "+c.d+" Психология: "+extra+(qs?" Вопросы: "+qs:"");
+function pathLineShort(){
+  if(!state.history.length) return "ещё не начался";
+  return state.history.map(h=>String(h.n)).join("→");
 }
-function buildGuideContext(question){
+function pathRepeats(){
+  const snake={}, arrow={};
+  state.history.forEach(h=>{
+    if(h.kind==="snake") snake[h.from]=(snake[h.from]||0)+1;
+    if(h.kind==="arrow") arrow[h.from]=(arrow[h.from]||0)+1;
+  });
+  const parts=[];
+  Object.keys(snake).forEach(from=>{
+    if(snake[from]>1) parts.push("змея "+from+"×"+snake[from]);
+  });
+  Object.keys(arrow).forEach(from=>{
+    if(arrow[from]>1) parts.push("стрела "+from+"×"+arrow[from]);
+  });
+  const last=state.history[state.history.length-1];
+  if(last&&last.kind==="snake") parts.push("последний спуск: "+last.from+"→"+last.n);
+  else if(last&&last.kind==="arrow") parts.push("последний подъём: "+last.from+"→"+last.n);
+  return parts.join("; ");
+}
+function buildGuideContextLite(question){
   const q=($("query")&&$("query").value||"").trim();
   const here=state.pos?DATA.cells[state.pos-1]:null;
-  const look=state.look?DATA.cells[state.look-1]:null;
   const named=findCellRef(String(question||"").toLowerCase());
-  const charm=CHARMS[state.charm];
+  const focus=named||here;
   const turn=Math.min(GUIDE_ASK_MAX, Math.max(1, guideAskCount()||1));
+  const charm=CHARMS[state.charm];
   const parts=[
-    "Запрос игрока: "+(q||"(не сформулирован)"),
-    "Позиция: "+(here?here.n+" «"+here.name+"»":"вне поля, ждёт 6"),
-    "Путь: "+(pathLine()||"ещё не начался"),
-    charm?"Талисман на 68: "+charm.tattva+" («"+charm.name+"»)":"Талисман не выбран",
-    "Шаг диалога: "+turn+"/"+GUIDE_ASK_MAX+". "+guideTurnHint(turn),
-    "Оптики только: юнгианская, регрессивная, архетипическая.",
-    "Правила: вход только с 6 на клетку 6 «Заблуждение»; победа только на 68; 69–71 не финиш; 72 змея на 51. Стрелы: "+DATA.arrows.map(a=>a[0]+"→"+a[1]).join(", ")+". Змеи: "+DATA.snakes.map(a=>a[0]+"→"+a[1]).join(", ")+"."
+    "Запрос: «"+(q||"(не сформулирован)")+"»",
+    focus?"Клетка: "+focus.n+" «"+focus.name+"» ("+focus.sk+")":"Позиция: вне поля, ждёт 6",
+    "Путь: "+pathLineShort()
   ];
-  if(named) parts.push("Упомянутая клетка:\n"+cellBrief(named));
-  else if(here) parts.push("Текущая клетка:\n"+cellBrief(here));
-  if(look && (!here || look.n!==here.n) && (!named || look.n!==named.n)) parts.push("Открытая клетка:\n"+cellBrief(look));
+  const rep=pathRepeats();
+  if(rep) parts.push("Повторы: "+rep);
+  if(charm) parts.push("Талисман на 68: "+charm.tattva+" («"+charm.name+"»)");
+  parts.push("Шаг: "+turn+"/"+GUIDE_ASK_MAX+" — "+guideTurnHint(turn));
+  parts.push("Карточка клетки на экране у игрока — не пересказывай её.");
   return parts.join("\n");
+}
+function buildGuideContext(question){
+  return buildGuideContextLite(question);
 }
 async function askDeepSeek(question){
   const api=getGuideApi();
-  const context=buildGuideContext(question);
-  const history=state.chat.filter(m=>m.text!==AI_THINK).slice(-8).map(m=>({role:m.role==="me"?"me":"bot",text:String(m.text||"").slice(0,500)}));
+  const context=buildGuideContextLite(question);
   if(api){
     const res=await fetch(api,{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({question:String(question).slice(0,400),context,history})
+      body:JSON.stringify({question:String(question).slice(0,400),context,history:[]})
     });
     if(res.status===429) throw new Error("слишком много вопросов, подождите");
     if(!res.ok) throw new Error("сервер проводника "+res.status);
@@ -839,9 +856,10 @@ async function askDeepSeek(question){
   const key=getAiKey();
   if(!key) throw new Error("нет ключа");
   const body={
-    model:"deepseek-chat",
-    temperature:0.7,
-    max_tokens:450,
+    model:GUIDE_MODEL,
+    temperature:0.35,
+    max_tokens:280,
+    thinking:{type:"disabled"},
     messages:[
       {role:"system",content:GUIDE_SYSTEM},
       {role:"user",content:"Контекст партии:\n"+context+"\n\nВопрос игрока: "+question}
@@ -1437,7 +1455,8 @@ window.buildPathInsight=buildPathInsight; window.buildVedicPdfDocument=buildVedi
 window.guideAsk=guideAsk; window.sendGuide=sendGuide; window.refreshGuideChat=refreshGuideChat;
 window.setCharm=setCharm; window.CHARMS=CHARMS;
 window.getAiKey=getAiKey; window.setAiKey=setAiKey; window.askDeepSeek=askDeepSeek;
-window.buildGuideContext=buildGuideContext; window.AI_STORE=AI_STORE;
+window.buildGuideContext=buildGuideContext; window.buildGuideContextLite=buildGuideContextLite;
+window.GUIDE_MODEL=GUIDE_MODEL; window.AI_STORE=AI_STORE;
 window.getGuideApi=getGuideApi; window.paintAiStatus=paintAiStatus; window.GUIDE_SYSTEM=GUIDE_SYSTEM;
 window.GUIDE_ASK_MAX=GUIDE_ASK_MAX; window.GUIDE_CLOSE=GUIDE_CLOSE; window.paintGuideQuota=paintGuideQuota;
 </script>

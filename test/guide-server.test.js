@@ -78,8 +78,32 @@ function request(server, method, path, body, headers) {
       history: Array.from({ length: 20 }, () => ({ role: "me", text: "y".repeat(2000) })),
     });
     assert.ok(out.context.length <= g.LIMITS.context);
-    assert.ok(out.history.length <= g.LIMITS.history);
-    assert.ok(out.history.every((m) => m.content.length <= g.LIMITS.historyItem));
+    assert.strictEqual(out.history.length, 0);
+  });
+
+  await test("uses v4-flash with thinking disabled", async () => {
+    const calls = [];
+    const g = createGuide({
+      getKey: () => "sk-test",
+      fetch: async (url, opts) => {
+        calls.push(JSON.parse(opts.body));
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            choices: [{ message: { content: "Краткий ответ." } }],
+            usage: { prompt_tokens: 120, completion_tokens: 45, prompt_cache_hit_tokens: 80 },
+          }),
+        };
+      },
+    });
+    const out = await g.complete({ question: "что здесь?", context: "Клетка: 6 «Заблуждение»" });
+    assert.ok(out.answer.includes("Краткий"));
+    assert.strictEqual(calls[0].model, g.MODEL);
+    assert.strictEqual(calls[0].thinking.type, "disabled");
+    assert.strictEqual(calls[0].max_tokens, 280);
+    assert.strictEqual(calls[0].temperature, 0.35);
+    assert.ok(calls[0].messages[0].content.includes("не пересказывай"));
   });
 
   const calls = [];
@@ -120,6 +144,8 @@ function request(server, method, path, body, headers) {
       assert.ok(calls[0].url.includes("api.deepseek.com"));
       const body = JSON.parse(calls[0].opts.body);
       assert.ok(body.messages[0].role === "system");
+      assert.strictEqual(body.model, guide.MODEL);
+      assert.strictEqual(body.thinking.type, "disabled");
       assert.ok(!JSON.stringify(res.json).includes("sk-server-secret"));
       assert.ok(calls[0].opts.headers.Authorization.includes("sk-server-secret"));
     });

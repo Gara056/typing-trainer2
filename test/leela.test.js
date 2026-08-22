@@ -324,8 +324,10 @@ function test(name, fn) {
     assert.strictEqual(sixth, w.GUIDE_CLOSE);
     assert.strictEqual(w.getState().guideAsks, 5);
     assert.ok(!w.document.getElementById("chat-log").textContent.includes("ещё вопрос"));
-    const ctx = w.buildGuideContext("вопрос");
-    assert.ok(ctx.includes("5/" + w.GUIDE_ASK_MAX) || ctx.includes("Шаг диалога"));
+    const ctx = w.buildGuideContextLite("вопрос");
+    assert.ok(ctx.includes("5/" + w.GUIDE_ASK_MAX));
+    assert.ok(!ctx.includes("Психология:"));
+    assert.ok(ctx.length < 800);
   });
 
   await test("elemental charm sits on cell 68 without blocking the board", () => {
@@ -360,9 +362,10 @@ function test(name, fn) {
     const w = load();
     w.document.getElementById("query").value = "мой выбор";
     w.applyRoll(6);
-    const ctx = w.buildGuideContext("клетка 6");
+    const ctx = w.buildGuideContextLite("клетка 6");
     assert.ok(ctx.includes("мой выбор"));
     assert.ok(ctx.includes("Заблуждение"));
+    assert.ok(!ctx.includes("Психология:"));
     assert.strictEqual(w.getAiKey(), "");
 
     let sent;
@@ -379,6 +382,9 @@ function test(name, fn) {
     assert.ok(sent.url.includes("api.deepseek.com"));
     assert.ok(sent.opts.headers.Authorization.includes("sk-test-leela"));
     const body = JSON.parse(sent.opts.body);
+    assert.strictEqual(body.model, w.GUIDE_MODEL);
+    assert.strictEqual(body.thinking.type, "disabled");
+    assert.strictEqual(body.max_tokens, 280);
     assert.ok(body.messages[1].content.includes("мой выбор"));
     assert.ok(w.document.getElementById("chat-log").textContent.includes("Зеркало мохи"));
     assert.ok(!w.localStorage.getItem(w.STORE).includes("sk-test-leela"));
@@ -409,6 +415,8 @@ function test(name, fn) {
     const body = JSON.parse(sent.opts.body);
     assert.ok(body.question);
     assert.ok(body.context.includes("мой выбор"));
+    assert.ok(Array.isArray(body.history));
+    assert.strictEqual(body.history.length, 0);
     assert.ok(!body.messages);
     assert.ok(w.document.getElementById("chat-log").textContent.includes("Сервер разобрал"));
     assert.ok(w.getGuideApi());
