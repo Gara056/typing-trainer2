@@ -10,13 +10,15 @@ const html = fs.readFileSync(path.join(__dirname, "..", "leela.html"), "utf8");
 function load() {
   const dom = new JSDOM(html, {
     runScripts: "dangerously",
-    url: "https://leela.local/leela.html",
+    url: "https://leela.local/leela.html?t=" + Math.random(),
     pretendToBeVisual: true,
   });
   const { window } = dom;
   if (!window.requestAnimationFrame) {
     window.requestAnimationFrame = (cb) => setTimeout(cb, 0);
   }
+  // Unit-тесты идут без прокси; прод в HTML по умолчанию использует /api/guide.
+  window.LEELA_GUIDE_API = "";
   return window;
 }
 
@@ -173,7 +175,31 @@ function test(name, fn) {
     await wait(750);
     assert.strictEqual(dice.classList.contains("rolling"), false);
     assert.strictEqual(w.getState().rolling, false);
-    if (!w.getState().won) assert.strictEqual(btn.disabled, false);
+    if (!w.getState().won && !w.getState().mustRead) {
+      assert.strictEqual(btn.disabled, false);
+    } else {
+      assert.strictEqual(btn.disabled, true);
+    }
+  });
+
+  await test("finale report follows the actual path and the query", () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    for (let i = 0; i < 800 && !w.getState().won; i++) {
+      w.applyRoll(1 + Math.floor(Math.random() * 6));
+    }
+    assert.ok(w.getState().won);
+    const finale = w.document.getElementById("finale").textContent;
+    assert.ok(finale.includes("мой выбор"));
+    assert.ok(finale.includes("Заблуждение"));
+    assert.ok(finale.includes("Космическое Сознание"));
+    assert.ok(finale.includes("Ход за ходом") || finale.includes("клетка 68"));
+    assert.ok(finale.includes("Зеркало партии") || finale.includes("Вопрос на подумать"));
+    assert.ok(w.document.getElementById("win").classList.contains("show"));
+    assert.ok(w.document.getElementById("btn-pdf"));
+    const names = [...new Set(w.getState().history.map((h) => w.DATA.cells[h.n - 1].name))];
+    assert.ok(names.every((name) => finale.includes(name)));
   });
 
   await test("reset hides token, clears history, empties dice, unlocks query", () => {
@@ -193,6 +219,264 @@ function test(name, fn) {
     assert.strictEqual(w.document.getElementById("query").value, "");
     assert.ok(w.document.getElementById("history").textContent.includes("Цепочка"));
     assert.strictEqual(w.document.querySelector(".cell.current"), null);
+  });
+
+  await test("unfinished game restores from localStorage", () => {
+    const w = load();
+    w.document.getElementById("query").value = "долгий путь";
+    w.applyRoll(6);
+    w.applyRoll(2);
+    const pos = w.getState().pos;
+    const n = w.getState().history.length;
+    const dumped = w.localStorage.getItem(w.STORE);
+    assert.ok(dumped);
+    w.resetGame();
+    assert.strictEqual(w.getState().pos, 0);
+    w.localStorage.setItem(w.STORE, dumped);
+    assert.ok(w.loadGame());
+    assert.strictEqual(w.getState().pos, pos);
+    assert.strictEqual(w.getState().history.length, n);
+    assert.strictEqual(w.document.getElementById("query").value, "долгий путь");
+    assert.strictEqual(w.document.getElementById("query").disabled, true);
+  });
+
+  await test("rules modal is titled Правила игры and speaks about meaning", () => {
+    const w = load();
+    const btn = w.document.getElementById("btn-rules");
+    assert.ok(btn.textContent.includes("Правила"));
+    const card = w.document.querySelector(".rules-card").textContent;
+    assert.ok(card.includes("Правила игры"));
+    assert.ok(card.includes("Подготовка"));
+    assert.ok(card.includes("Записи ходов"));
+    assert.ok(card.includes("Смысл, не финиш"));
+    assert.ok(card.includes("зеркало"));
+    assert.ok(card.includes("вернуться на клетку 68"));
+    assert.ok(card.includes("69"));
+    assert.ok(card.includes("камень") || card.includes("стихи"));
+  });
+
+  await test("guide answers about a cell, the query, and why games can be short", () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    const cell = w.guideAsk("что значит клетка 54");
+    assert.ok(cell.includes("54"));
+    assert.ok(/бхакти/i.test(cell));
+    assert.ok(cell.includes("мой выбор"));
+    const named = w.guideAsk("бхакти");
+    assert.ok(named.includes("54"));
+    const why = w.guideAsk("Почему партия может закончиться быстро?");
+    assert.ok(why.includes("54"));
+    assert.ok(why.includes("68"));
+    const rel = w.guideAsk("Что эта клетка говорит моему запросу?");
+    assert.ok(rel.includes("Заблуждение") || rel.includes("мой выбор"));
+    w.sendGuide("как читать мой путь?");
+    const log = w.document.getElementById("chat-log").textContent;
+    assert.ok(log.includes("как читать мой путь?"));
+    assert.ok(log.includes("Заблуждение"));
+    assert.ok(w.getState().chat.length >= 2);
+  });
+
+  await test("guide chat restores with the game", () => {
+    const w = load();
+    w.document.getElementById("query").value = "долгий путь";
+    w.applyRoll(6);
+    w.sendGuide("что значит стрела с 17?");
+    const dumped = w.localStorage.getItem(w.STORE);
+    assert.ok(dumped);
+    assert.ok(dumped.includes("стрела с 17"));
+    w.resetGame();
+    assert.strictEqual(w.getState().chat.length, 0);
+    w.localStorage.setItem(w.STORE, dumped);
+    assert.ok(w.loadGame());
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("стрела с 17"));
+    assert.ok(w.getState().chat.length >= 2);
+  });
+
+  await test("guide chat refreshes after the next move", () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    w.sendGuide("что говорит эта клетка?");
+    assert.ok(w.getState().chat.length >= 2);
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("что говорит эта клетка?"));
+    w.liveCell();
+    w.applyRoll(2);
+    assert.strictEqual(w.getState().chat.length, 0);
+    assert.strictEqual(w.getState().guideAsks, 0);
+    const log = w.document.getElementById("chat-log").textContent;
+    assert.ok(!log.includes("что говорит эта клетка?"));
+    assert.ok(log.includes(String(w.getState().pos)));
+    assert.ok(w.document.querySelector(".guide-blurb"));
+    assert.ok(/юнгиан|архетип|тень|регресс/i.test(w.GUIDE_SYSTEM));
+  });
+
+  await test("guide allows three questions per move then invites the next roll", async () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    for (let i = 1; i <= 3; i++) {
+      await w.sendGuide("вопрос " + i);
+      assert.strictEqual(w.getState().guideAsks, i);
+    }
+    const afterThree = w.document.getElementById("chat-log").textContent;
+    assert.ok(afterThree.includes(w.GUIDE_CLOSE));
+    assert.ok(w.document.getElementById("chat-input").disabled);
+    const fourth = await w.sendGuide("ещё вопрос");
+    assert.strictEqual(fourth, w.GUIDE_CLOSE);
+    assert.strictEqual(w.getState().guideAsks, 3);
+    assert.ok(!w.document.getElementById("chat-log").textContent.includes("ещё вопрос"));
+    const ctx = w.buildGuideContextLite("вопрос");
+    assert.ok(ctx.includes("3/" + w.GUIDE_ASK_MAX));
+    assert.ok(ctx.includes("Психоякорь"));
+    assert.ok(ctx.includes("Вопрос игрока"));
+    assert.ok(ctx.length < 1600);
+  });
+
+  await test("elemental charm sits on cell 68 without blocking the board", () => {
+    const w = load();
+    const charm = w.document.getElementById("charm");
+    assert.ok(charm);
+    assert.ok(w.document.querySelector('.cell[data-n="68"]').contains(charm));
+    assert.strictEqual(w.getComputedStyle(charm).pointerEvents, "none");
+    assert.ok(!charm.classList.contains("show"));
+    w.setCharm("earth");
+    assert.strictEqual(w.getState().charm, "earth");
+    assert.ok(charm.classList.contains("show"));
+    assert.ok(charm.querySelector("svg"));
+    assert.ok(w.document.getElementById("charm-hint").textContent.includes("Земля"));
+    w.document.querySelector('.cell[data-n="68"]').click();
+    assert.ok(w.document.getElementById("analysis-body").textContent.includes("Космическое Сознание"));
+    w.applyRoll(6);
+    assert.strictEqual(w.document.querySelector('#charms button[data-charm="water"]').disabled, true);
+    const dumped = w.localStorage.getItem(w.STORE);
+    assert.ok(dumped.includes("earth"));
+    w.resetGame();
+    assert.strictEqual(w.getState().charm, "");
+    assert.ok(!w.document.getElementById("charm").classList.contains("show"));
+    w.localStorage.setItem(w.STORE, dumped);
+    assert.ok(w.loadGame());
+    assert.strictEqual(w.getState().charm, "earth");
+    assert.ok(w.document.getElementById("charm").classList.contains("show"));
+    assert.ok(w.guideAsk("что значит талисман").includes("Земля"));
+  });
+
+  await test("DeepSeek uses the player's key and game context, falls back locally", async () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    const ctx = w.buildGuideContextLite("клетка 6");
+    assert.ok(ctx.includes("мой выбор"));
+    assert.ok(ctx.includes("Заблуждение"));
+    assert.ok(ctx.includes("Психоякорь"));
+    assert.ok(!ctx.includes("Психология:"));
+    assert.strictEqual(w.getAiKey(), "");
+
+    let sent;
+    w.fetch = async (url, opts) => {
+      sent = { url, opts };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ choices: [{ message: { content: "Зеркало мохи к запросу." } }] }),
+      };
+    };
+    w.setAiKey("sk-test-leela");
+    await w.sendGuide("что говорит эта клетка?");
+    assert.ok(sent.url.includes("api.deepseek.com"));
+    assert.ok(sent.opts.headers.Authorization.includes("sk-test-leela"));
+    const body = JSON.parse(sent.opts.body);
+    assert.strictEqual(body.model, w.GUIDE_MODEL);
+    assert.strictEqual(body.thinking.type, "disabled");
+    assert.ok(body.max_tokens === 240 || body.max_tokens === 360);
+    assert.ok(body.messages[0].content.includes("Отвечай на КОНКРЕТНЫЙ вопрос"));
+    assert.ok(body.messages.some((m) => m.content && m.content.includes("мой выбор")));
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("Зеркало мохи"));
+    assert.ok(!w.localStorage.getItem(w.STORE).includes("sk-test-leela"));
+
+    w.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: "ключ не принят" }) });
+    await w.sendGuide("как играть?");
+    const failText = w.document.getElementById("chat-log").textContent;
+    assert.ok(failText.includes("Проводник не ответил"));
+    assert.ok(!failText.includes("Семь опор"));
+  });
+
+  await test("hosted guide API never sends the DeepSeek key from the browser", async () => {
+    const w = load();
+    w.LEELA_GUIDE_API = "https://guide.example/api/guide";
+    w.paintAiStatus();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    let sent;
+    w.fetch = async (url, opts) => {
+      sent = { url, opts };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ answer: "Сервер разобрал клетку 6." }),
+      };
+    };
+    await w.sendGuide("что говорит эта клетка?");
+    assert.strictEqual(sent.url, "https://guide.example/api/guide");
+    assert.ok(!sent.opts.headers.Authorization);
+    const body = JSON.parse(sent.opts.body);
+    assert.ok(body.question);
+    assert.ok(body.context.includes("мой выбор"));
+    assert.ok(Array.isArray(body.history));
+    assert.ok(!body.messages);
+    assert.ok(w.document.getElementById("chat-log").textContent.includes("Сервер разобрал"));
+    assert.ok(w.getGuideApi());
+  });
+
+  await test("finale can be packed into a standalone HTML file", () => {
+    const w = load();
+    w.document.getElementById("query").value = "сохранить разбор";
+    w.applyRoll(6);
+    for (let i = 0; i < 800 && !w.getState().won; i++) {
+      w.applyRoll(1 + Math.floor(Math.random() * 6));
+    }
+    assert.ok(w.getState().won);
+    const doc = w.buildFinaleDocument();
+    assert.ok(doc.includes("<!DOCTYPE html>"));
+    assert.ok(doc.includes("сохранить разбор"));
+    assert.ok(doc.includes("Космическое Сознание"));
+    assert.ok(w.buildFinaleText().includes("сохранить разбор"));
+  });
+
+  await test("guide chats are archived and vedic PDF mirrors the path", async () => {
+    const w = load();
+    w.document.getElementById("query").value = "мой выбор";
+    w.applyRoll(6);
+    await w.sendGuide("что говорит эта клетка?");
+    assert.ok(w.getState().guideAsks >= 1);
+    w.liveCell();
+    w.applyRoll(1);
+    assert.ok(w.getState().guideLog.some((e) => e.n === 6 && e.notes.length));
+    for (let i = 0; i < 800 && !w.getState().won; i++) {
+      w.applyRoll(1 + Math.floor(Math.random() * 6));
+    }
+    assert.ok(w.getState().won);
+    const insight = w.buildPathInsight();
+    assert.ok(insight.keyQuestion);
+    assert.ok(insight.chapters.length >= 1);
+    const pdf = w.buildVedicPdfDocument();
+    assert.ok(pdf.includes("ॐ"));
+    assert.ok(pdf.includes("Вопрос на подумать"));
+    assert.ok(pdf.includes("мой выбор"));
+    assert.ok(pdf.includes(insight.keyQuestion));
+    assert.ok(!pdf.includes("проводник прошёл"));
+    assert.ok(!pdf.includes("сжатое зеркало партии"));
+    assert.ok(pdf.includes("Дуга пути"));
+    assert.ok(pdf.includes("Ход за ходом"));
+    assert.ok(pdf.includes("Шаги к запросу после игры"));
+    const sheet = w.buildVedicPdfSheet();
+    const blocks = w.buildVedicPdfBlocks();
+    assert.ok(blocks.length >= 4);
+    assert.ok(sheet.includes("Дуга пути"));
+    assert.ok(sheet.includes("Ход за ходом"));
+    assert.ok(sheet.includes("мой выбор"));
+    assert.ok(blocks.some((b) => b.includes("insight-cell")));
+    assert.ok(blocks.some((b) => b.includes("finale-step")));
   });
 
   if (process.exitCode) {

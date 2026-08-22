@@ -1,0 +1,17 @@
+[Unit]
+Description=Leela DeepSeek guide
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/leela
+EnvironmentFile=/var/www/leela/.env
+ExecStart=/usr/bin/node server/guide.cjs
+Restart=always
+RestartSec=3
+User=www-data
+Group=www-data
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
