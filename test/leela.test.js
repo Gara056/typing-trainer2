@@ -327,8 +327,8 @@ function test(name, fn) {
     const ctx = w.buildGuideContextLite("вопрос");
     assert.ok(ctx.includes("3/" + w.GUIDE_ASK_MAX));
     assert.ok(ctx.includes("Психоякорь"));
-    assert.ok(ctx.includes("Вопрос игрока сейчас"));
-    assert.ok(ctx.length < 1400);
+    assert.ok(ctx.includes("Вопрос игрока"));
+    assert.ok(ctx.length < 1600);
   });
 
   await test("elemental charm sits on cell 68 without blocking the board", () => {
@@ -386,15 +386,17 @@ function test(name, fn) {
     const body = JSON.parse(sent.opts.body);
     assert.strictEqual(body.model, w.GUIDE_MODEL);
     assert.strictEqual(body.thinking.type, "disabled");
-    assert.ok(body.max_tokens === 220 || body.max_tokens === 320);
-    assert.ok(body.messages[0].content.includes("Сначала отвечай на вопрос"));
+    assert.ok(body.max_tokens === 240 || body.max_tokens === 360);
+    assert.ok(body.messages[0].content.includes("Отвечай на КОНКРЕТНЫЙ вопрос"));
     assert.ok(body.messages.some((m) => m.content && m.content.includes("мой выбор")));
     assert.ok(w.document.getElementById("chat-log").textContent.includes("Зеркало мохи"));
     assert.ok(!w.localStorage.getItem(w.STORE).includes("sk-test-leela"));
 
-    w.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+    w.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: "ключ не принят" }) });
     await w.sendGuide("как играть?");
-    assert.ok(w.document.getElementById("chat-log").textContent.includes("Семь опор"));
+    const failText = w.document.getElementById("chat-log").textContent;
+    assert.ok(failText.includes("Проводник не ответил"));
+    assert.ok(!failText.includes("Семь опор"));
   });
 
   await test("hosted guide API never sends the DeepSeek key from the browser", async () => {

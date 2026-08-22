@@ -119,9 +119,9 @@ function request(server, method, path, body, headers) {
     assert.strictEqual(out.peak, false);
     assert.strictEqual(calls[0].model, g.MODEL);
     assert.strictEqual(calls[0].thinking.type, "disabled");
-    assert.strictEqual(calls[0].max_tokens, 320);
-    assert.strictEqual(calls[0].temperature, 0.45);
-    assert.ok(calls[0].messages[0].content.includes("Сначала отвечай на вопрос"));
+    assert.strictEqual(calls[0].max_tokens, 360);
+    assert.strictEqual(calls[0].temperature, 0.55);
+    assert.ok(calls[0].messages[0].content.includes("Отвечай на КОНКРЕТНЫЙ вопрос"));
     assert.ok(calls[0].messages.some((m) => m.role === "user" && m.content.includes("первый вопрос")));
   });
 
@@ -144,7 +144,7 @@ function request(server, method, path, body, headers) {
     });
     const out = await g.complete({ question: "что здесь?", context: "Клетка: 6" });
     assert.strictEqual(out.peak, true);
-    assert.strictEqual(calls[0].max_tokens, 220);
+    assert.strictEqual(calls[0].max_tokens, 240);
   });
 
   const calls = [];

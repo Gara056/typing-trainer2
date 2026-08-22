@@ -382,10 +382,10 @@ const GUIDE_ASK_MAX=3;
 const GUIDE_CLOSE="Суть этого хода уже прозвучала. Дай ей чуть дозреть в тебе — а дальше давай разберём следующий бросок. У тебя ещё будет время подумать над тем, что услышал.";
 const GUIDE_HELLO="Спроси про клетку и запрос — своими словами. Смотрим только архетип, тень и ранний слой опыта.";
 const GUIDE_SYSTEM=
-  "Ты проводник игры Лила (поле Хариша Джохари). Говори по-русски. Сначала отвечай на вопрос игрока; шаг N/3 — только линза, не сценарий. Три оптики: 1) юнгианская (тень, Самость, персона, анимус/анима, индивидуация); 2) регрессивная (возраст/ранний опыт); 3) архетипическая (клетка как образ/сцена, не приговор). Не эзотерика, не нумерология, не предсказания, не диагнозы, не гуру-поза. Не выдумывай стрелы/змеи/номера. Не пересказывай карточку клетки и не цитируй якорь дословно. Не повторяй прошлые ответы — если уже сказано, углуби или смести акцент. Свяжи клетку с запросом партии. 3–5 предложений, конкретно. Шаги: 1 архетип, 2 тень/персона, 3 регрессия + смысл для запроса и мягко к следующему броску. На шаге 3 новую тему не открывай.";
+  "Ты проводник Лилы. Русский. Отвечай на КОНКРЕТНЫЙ вопрос игрока своими словами. Оптики: юнгианская (тень/персона/Самость), регрессивная (ранний возраст/опыт), архетипическая (клетка = сцена). Запрещено: эзотерика, нумерология, предсказания, диагнозы, гуру-поза, выдуманные номера клеток. Запрещено пересказывать карточку и повторять уже сказанное в диалоге. Каждый ответ — новый угол: одна живая гипотеза, привязанная к словам запроса и к клетке. 3–5 предложений. Шаг 1/3 — сильнее архетип; 2/3 — тень/персона; 3/3 — регрессия + смысл для запроса и мягко к броску. Если вопрос не про оптику шага — всё равно ответь на вопрос, оптику используй как подсветку.";
 const GUIDE_MODEL="deepseek-v4-flash";
 const GUIDE_HISTORY_MAX=4;
-const GUIDE_HISTORY_ITEM=280;
+const GUIDE_HISTORY_ITEM=320;
 let hydrating=false;
 const $=id=>document.getElementById(id);
 function cellOrder(){
@@ -738,9 +738,9 @@ function guideAsk(raw){
   const aboutHere=/эта клетка|текущ(ая|ей)|что это говорит/.test(ql);
   if(aboutHere&&(look||here||cell)){
     const focus=cell||look||here;
-    const extra=DATA.psych[String(focus.n)]||"";
-    if(!query) return "Клетка "+focus.n+" — «"+focus.name+"». "+focus.d.slice(0,220)+" Напиши запрос над доской — тогда зеркало станет личным.";
-    return "Клетка "+focus.n+" «"+focus.name+"» смотрит в запрос «"+query+"». "+focus.d+" Психологический слой: "+extra+" Где в твоей фразе уже есть эта тема — и где ты ещё ждёшь ответа снаружи?";
+    const extra=clipInsight(DATA.psych[String(focus.n)]||"", 220);
+    if(!query) return "Клетка "+focus.n+" — «"+focus.name+"». "+clipInsight(focus.d,180)+" Напиши запрос над доской — тогда разбор станет личным.";
+    return "Клетка "+focus.n+" «"+focus.name+"» к запросу «"+query+"»: "+extra+" Где в твоей фразе уже есть эта тема?";
   }
   if(/запрос|intention|что я спросил|мой вопрос|с чем я вош/.test(ql)&&!cell){
     if(!query) return "Запрос ещё пуст. Напиши его над доской — это нить, по которой читаются клетки. Пока нити нет, поле отвечает обще, а не про твою жизнь.";
@@ -763,17 +763,15 @@ function guideAsk(raw){
   }
   const focus=cell||((aboutHere&&look)?look:null);
   if(focus){
-    const extra=DATA.psych[String(focus.n)]||"";
-    const qs=(focus.q||[]).slice(0,2).join(" ");
+    const extra=clipInsight(DATA.psych[String(focus.n)]||"", 220);
+    const qs=(focus.q||[]).slice(0,1).join(" ");
     let rel="";
-    if(query) rel=" К запросу «"+query+"»: где эта тема уже живёт в твоей фразе, а где ты ещё торгуешься с жизнью?";
-    if(here&&here.n===focus.n) rel+=" Ты стоишь здесь сейчас — не спеши бросать дальше.";
-    else if(look&&look.n===focus.n&&(!here||here.n!==focus.n)) rel+=" Это клетка, которую ты сейчас читаешь.";
-    return "Клетка "+focus.n+" — «"+focus.name+"» ("+focus.sk+"). "+focus.d+" Психологический слой: "+extra+(qs?" Вопросы: "+qs:"")+rel;
+    if(query) rel=" К запросу «"+query+"»: где эта тема уже в твоей фразе?";
+    return "Клетка "+focus.n+" — «"+focus.name+"» ("+focus.sk+"). "+extra+(qs?" Вопрос: "+qs:"")+rel;
   }
   if(here){
-    const extra=DATA.psych[String(here.n)]||"";
-    return "Сейчас ты на "+here.n+" — «"+here.name+"». "+here.d.slice(0,280)+" "+extra.slice(0,180)+(query?" Держи запрос: «"+query+"».":" Напиши запрос — разбор станет личным.")+" Уточни номер клетки или спроси про путь, стрелы, запрос.";
+    const extra=clipInsight(DATA.psych[String(here.n)]||"", 180);
+    return "Сейчас ты на "+here.n+" — «"+here.name+"». "+extra+(query?" Держи запрос: «"+query+"».":" Напиши запрос.")+" Уточни вопрос — отвечу точнее.";
   }
   if(look){
     return "Ты смотришь клетку "+look.n+" — «"+look.name+"». "+look.d.slice(0,240)+" Спроси номер, имя, «мой путь» или «запрос» — разберу глубже.";
@@ -827,10 +825,23 @@ function pathRepeats(){
   return parts.join("; ");
 }
 function guideHistoryPayload(){
+  // Текущий вопрос уже уйдёт в финальном user — не дублируем его в history.
+  const rows=state.chat.filter(m=>m&&m.text&&m.text!==AI_THINK);
+  let end=rows.length;
+  if(end&&rows[end-1].role==="me") end-=1;
+  return rows.slice(Math.max(0,end-GUIDE_HISTORY_MAX), end).map(m=>({
+    role:m.role==="me"?"me":"bot",
+    text:String(m.text||"").replace(GUIDE_CLOSE,"").trim().slice(0,GUIDE_HISTORY_ITEM)
+  })).filter(m=>m.text);
+}
+function priorGuideNotes(){
   return state.chat
-    .filter(m=>m&&m.text&&m.text!==AI_THINK)
-    .slice(-GUIDE_HISTORY_MAX)
-    .map(m=>({role:m.role==="me"?"me":"bot",text:String(m.text||"").slice(0,GUIDE_HISTORY_ITEM)}));
+    .filter(m=>m.role==="bot"&&m.text&&m.text!==AI_THINK)
+    .map(m=>String(m.text||"").split(GUIDE_CLOSE)[0].trim())
+    .filter(Boolean)
+    .slice(-2)
+    .map((t,i)=> (i+1)+") "+clipInsight(t,160))
+    .join(" | ");
 }
 function buildGuideContextLite(question){
   const q=($("query")&&$("query").value||"").trim();
@@ -842,7 +853,7 @@ function buildGuideContextLite(question){
   const peak=isDeepSeekPeak();
   const parts=[
     "Запрос партии: «"+(q||"(не сформулирован)")+"»",
-    "Вопрос игрока сейчас: «"+String(question||"").trim().slice(0,220)+"»",
+    "Вопрос игрока: «"+String(question||"").trim().slice(0,220)+"»",
     focus?"Клетка: "+focus.n+" «"+focus.name+"» ("+focus.sk+")":"Позиция: вне поля, ждёт 6",
     "Путь: "+pathLineShort()
   ];
@@ -850,13 +861,15 @@ function buildGuideContextLite(question){
   if(rep) parts.push("Повторы: "+rep);
   if(charm) parts.push("Талисман на 68: "+charm.tattva+" («"+charm.name+"»)");
   if(focus){
-    const anchor=clipInsight(DATA.psych[String(focus.n)]||focus.d||"", peak?120:180);
-    if(anchor) parts.push("Психоякорь (не цитируй дословно): "+anchor);
+    const anchor=clipInsight(DATA.psych[String(focus.n)]||focus.d||"", peak?160:240);
+    if(anchor) parts.push("Психоякорь (перефразируй, не копируй): "+anchor);
     if(focus.q&&focus.q[0]) parts.push("Вопрос клетки: "+focus.q[0]);
   }
+  const prior=priorGuideNotes();
+  if(prior) parts.push("Уже сказано в этом ходе — НЕ повторяй: "+prior);
   parts.push("Шаг: "+turn+"/"+GUIDE_ASK_MAX+" — "+guideTurnHint(turn));
-  parts.push("Сначала ответь на вопрос игрока через линзу шага. Не повторяй прошлые ответы. Карточку на экране не пересказывай.");
-  if(peak) parts.push("Пик тарифа: будь ещё короче, без воды.");
+  parts.push("Дай новый угол к вопросу. Без шаблонных фраз вроде «клетка зеркало» без конкретики.");
+  if(peak) parts.push("Пик тарифа: короче, без воды.");
   return parts.join("\n");
 }
 function buildGuideContext(question){
@@ -873,7 +886,11 @@ async function askDeepSeek(question){
       body:JSON.stringify({question:String(question).slice(0,400),context,history})
     });
     if(res.status===429) throw new Error("слишком много вопросов, подождите");
-    if(!res.ok) throw new Error("сервер проводника "+res.status);
+    if(!res.ok){
+      let detail="";
+      try{ const errBody=await res.json(); detail=errBody&&errBody.error?String(errBody.error):""; }catch(e){}
+      throw new Error(detail||("сервер проводника "+res.status));
+    }
     const data=await res.json();
     const text=String(data.answer||data.content||"").trim();
     if(!text) throw new Error("пустой ответ");
@@ -884,11 +901,11 @@ async function askDeepSeek(question){
   const peak=isDeepSeekPeak();
   const messages=[{role:"system",content:GUIDE_SYSTEM}];
   history.forEach(m=>messages.push({role:m.role==="me"?"user":"assistant",content:m.text}));
-  messages.push({role:"user",content:"Контекст партии:\n"+context+"\n\nВопрос игрока: "+question});
+  messages.push({role:"user",content:"Контекст партии:\n"+context+"\n\nВопрос игрока: "+question+"\n\nОтветь по существу вопроса. Не повторяй блок «Уже сказано»."});
   const body={
     model:GUIDE_MODEL,
-    temperature:0.45,
-    max_tokens:peak?220:320,
+    temperature:0.55,
+    max_tokens:peak?240:360,
     thinking:{type:"disabled"},
     messages
   };
@@ -938,7 +955,12 @@ function sendGuide(text){
   state.chat.push({role:"bot",text:AI_THINK});
   renderChat();
   saveGame();
-  return askDeepSeek(q).then(finish).catch(()=>finish(guideAsk(q)));
+  return askDeepSeek(q).then(finish).catch((err)=>{
+    console.error("guide failed", err);
+    const why=err&&err.message?String(err.message):"сбой связи";
+    // Не подсовываем шаблонный guideAsk — он выглядит как «тупой повтор» карточки.
+    return finish("Проводник не ответил ("+why+"). Попробуй ещё раз через минуту — или переформулируй вопрос короче.");
+  });
 }
 function snapshot(){
   return {
@@ -1483,7 +1505,8 @@ window.guideAsk=guideAsk; window.sendGuide=sendGuide; window.refreshGuideChat=re
 window.setCharm=setCharm; window.CHARMS=CHARMS;
 window.getAiKey=getAiKey; window.setAiKey=setAiKey; window.askDeepSeek=askDeepSeek;
 window.buildGuideContext=buildGuideContext; window.buildGuideContextLite=buildGuideContextLite;
-window.guideHistoryPayload=guideHistoryPayload; window.isDeepSeekPeak=isDeepSeekPeak;
+window.guideHistoryPayload=guideHistoryPayload; window.priorGuideNotes=priorGuideNotes;
+window.isDeepSeekPeak=isDeepSeekPeak;
 window.GUIDE_MODEL=GUIDE_MODEL; window.AI_STORE=AI_STORE;
 window.getGuideApi=getGuideApi; window.paintAiStatus=paintAiStatus; window.GUIDE_SYSTEM=GUIDE_SYSTEM;
 window.GUIDE_ASK_MAX=GUIDE_ASK_MAX; window.GUIDE_CLOSE=GUIDE_CLOSE; window.paintGuideQuota=paintGuideQuota;
