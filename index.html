@@ -639,7 +639,8 @@ function pickKeyQuestion(q,chapters){
   }
   return "Кто во мне смотрит на запрос «"+q+"» теперь, когда поле уже молчит?";
 }
-function buildPathInsight(){
+function buildPathInsight(opts){
+  const full=!!(opts&&opts.full);
   const q=queryText();
   const byN={};
   (state.guideLog||[]).forEach(e=>{ if(e&&e.n!=null) byN[e.n]=e; });
@@ -656,9 +657,12 @@ function buildPathInsight(){
     if(!c) return;
     const log=byN[n];
     const fromGuide=!!(log&&log.notes&&log.notes.length);
-    const essence=fromGuide
-      ? clipInsight(log.notes[log.notes.length-1], 300)
-      : clipInsight(DATA.psych[String(n)]||c.d, 220);
+    const raw=fromGuide
+      ? log.notes[log.notes.length-1]
+      : (DATA.psych[String(n)]||c.d);
+    const essence=full
+      ? String(raw||"").replace(/\s+/g," ").trim()
+      : clipInsight(raw, fromGuide?300:220);
     chapters.push({n:c.n,name:c.name,sk:c.sk,essence,fromGuide});
   });
   let shown=chapters.filter(c=>c.fromGuide);
@@ -1014,9 +1018,9 @@ function exportFinale(kind){
   else downloadBlob(buildFinaleDocument(),"text/html;charset=utf-8",name+".html");
 }
 function vedicPdfStyles(){
-  return `@page{size:A4;margin:18mm 16mm}
+  return `@page{size:A4;margin:14mm 12mm}
   *{box-sizing:border-box}
-  body{margin:0;background:#1a100c;color:#f3e6d0;font:15px/1.55 "Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif}
+  body{margin:0;background:#1a100c;color:#f3e6d0;font:14px/1.55 "Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif}
   .sheet{max-width:720px;margin:0 auto;padding:28px 26px 36px;background:
     radial-gradient(ellipse at 50% 0%,rgba(201,164,92,.16),transparent 55%),
     linear-gradient(180deg,#2a1c14 0%,#140e0a 100%);
@@ -1025,45 +1029,39 @@ function vedicPdfStyles(){
   .kicker{text-align:center;letter-spacing:.34em;text-transform:uppercase;font-size:11px;color:#d4b56a;margin:0 0 8px}
   h1{text-align:center;font-weight:500;font-size:30px;color:#f0ddb0;margin:0 0 6px}
   .sub{text-align:center;color:#cbb79a;font-size:13px;margin:0 0 18px}
-  .query{text-align:center;font-style:italic;font-size:18px;color:#f0ddb0;border-top:1px solid rgba(201,164,92,.35);border-bottom:1px solid rgba(201,164,92,.35);padding:14px 8px;margin:0 0 18px}
-  .cell{display:flex;gap:12px;padding:12px 0;border-top:1px solid rgba(201,164,92,.22)}
-  .num{flex:0 0 36px;height:36px;border:1px solid #c9a45c;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#f0ddb0;font-size:13px}
-  h3{margin:0 0 6px;font-weight:500;font-size:17px;color:#f0ddb0}
-  h3 span{font-size:12px;color:#c9a45c;font-style:italic;font-weight:400}
-  .cell p{margin:0;color:#e7dcc8;font-size:14px}
-  .qbox{margin-top:22px;padding:16px 14px;border:1px solid #c9a45c;background:rgba(201,164,92,.08)}
-  .qlabel{letter-spacing:.2em;text-transform:uppercase;font-size:11px;color:#c9a45c;margin-bottom:8px}
-  .qtext{font-size:20px;line-height:1.4;color:#f0ddb0;font-style:italic}
+  .sec{margin-top:16px;padding-top:12px;border-top:1px solid rgba(201,164,92,.25);page-break-inside:avoid}
+  .sec>b{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#c9a45c;margin-bottom:8px}
+  .sec p,.sec li{color:#e7dcc8;margin:0 0 8px}
+  .sec ol,.sec ul{margin:8px 0 0;padding-left:20px}
+  .qthread{color:#f0ddb0;font-style:italic}
+  .insight-block{margin:14px 0;padding:16px 14px;border:1px solid rgba(201,164,92,.35);border-radius:12px;background:rgba(8,6,4,.35);page-break-inside:avoid}
+  .insight-cell{border-top:1px solid rgba(201,164,92,.22);padding:10px 0 4px;page-break-inside:avoid}
+  .insight-cell b{color:#f0ddb0;font-weight:500}
+  .insight-cell i{color:#c9a45c;font-size:12px;font-style:italic}
+  .insight-cell p{margin:6px 0 0;color:#e7dcc8;font-size:14px}
+  .insight-q{margin-top:14px;padding-top:12px;border-top:1px solid rgba(201,164,92,.35)}
+  .insight-q .label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#c9a45c;margin-bottom:6px}
+  .insight-q p{font-size:18px;color:#f0ddb0;font-style:italic;line-height:1.45;margin:0}
+  .finale-step{border-top:1px solid rgba(201,164,92,.22);padding:12px 0;page-break-inside:avoid}
+  .pill{display:inline-block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#c9a45c;border:1px solid rgba(201,164,92,.35);padding:3px 8px;border-radius:999px;margin-bottom:6px}
+  .finale-step h4{margin:6px 0 8px;font-weight:500;font-size:17px;color:#f0ddb0}
+  .finale-step h4 i{color:#c9a45c;font-size:13px;font-weight:400;font-style:italic}
+  .finale-step p{color:#e7dcc8;margin:0 0 8px}
+  .finale-step ul{margin:6px 0 0;padding-left:18px;color:#d8cbb8}
   .foot{margin-top:22px;text-align:center;font-size:11px;color:#a8947c;letter-spacing:.08em}`;
 }
 function buildVedicPdfSheet(){
-  const insight=buildPathInsight();
-  const q=esc(insight.q);
-  const cells=(insight.chapters||[]).map(c=>`
-    <section class="cell">
-      <div class="num">${c.n}</div>
-      <div>
-        <h3>${esc(c.name)}${c.sk?` <span>${esc(c.sk)}</span>`:""}</h3>
-        <p>${esc(c.essence)}</p>
-      </div>
-    </section>`).join("");
   return `<div class="sheet">
   <div class="orn">✦ · ॐ · ✦</div>
   <div class="kicker">Лила · ведическое зеркало партии</div>
   <h1>Космическое Сознание</h1>
-  <p class="sub">Краткий разбор пути · ${esc(new Date().toLocaleString("ru-RU"))}</p>
-  <div class="query">«${q}»</div>
-  ${cells}
-  <div class="qbox">
-    <div class="qlabel">Вопрос на подумать</div>
-    <div class="qtext">${esc(insight.keyQuestion)}</div>
-  </div>
+  <p class="sub">Полный разбор пути · ${esc(new Date().toLocaleString("ru-RU"))}</p>
+  ${buildFinale({full:true})}
   <p class="foot">Вайкунтха-лока · клетка 68 · не кубок, а совпадение со источником</p>
 </div>`;
 }
 function buildVedicPdfDocument(){
-  const insight=buildPathInsight();
-  const q=esc(insight.q);
+  const q=esc(queryText());
   return `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Лила · зеркало партии — ${q}</title>
 <style>${vedicPdfStyles()}</style></head><body>
 ${buildVedicPdfSheet()}
@@ -1079,18 +1077,27 @@ async function exportFinalePdf(){
       return;
     }
     const host=document.createElement("div");
-    host.style.cssText="position:fixed;left:-10000px;top:0;width:720px;pointer-events:none;opacity:0";
+    host.style.cssText="position:fixed;left:-12000px;top:0;width:720px;pointer-events:none";
     host.innerHTML="<style>"+vedicPdfStyles()+"</style>"+buildVedicPdfSheet();
     document.body.appendChild(host);
     const sheet=host.querySelector(".sheet");
+    const sheetHeight=sheet.scrollHeight;
     try{
       await html2pdf().set({
-        margin:[12,12,12,12],
+        margin:[10,10,10,10],
         filename:name,
-        image:{type:"jpeg",quality:.95},
-        html2canvas:{scale:2,logging:false,useCORS:true},
+        image:{type:"jpeg",quality:.92},
+        html2canvas:{
+          scale:2,
+          logging:false,
+          useCORS:true,
+          scrollY:0,
+          windowWidth:720,
+          height:sheetHeight,
+          windowHeight:sheetHeight
+        },
         jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
-        pagebreak:{mode:["avoid-all","css","legacy"]}
+        pagebreak:{mode:["css","legacy"],before:".finale-step",avoid:[".insight-block",".insight-q"]}
       }).from(sheet).save();
     }finally{
       host.remove();
@@ -1120,7 +1127,8 @@ async function shareFinale(){
   }
   exportFinale("html");
 }
-function buildFinale(){
+function buildFinale(opts){
+  const full=!!(opts&&opts.full);
   const q=queryText();
   const hist=state.history;
   const arrows=hist.filter(h=>h.kind==="arrow");
@@ -1175,7 +1183,7 @@ function buildFinale(){
     </article>`;
   }).join("");
   return `<div class="sec"><b>Запрос партии</b><p class="qthread">«${esc(q)}»</p></div>
-    ${buildInsightHtml(buildPathInsight())}
+    ${buildInsightHtml(buildPathInsight({full:full}))}
     <div class="sec"><b>Дуга пути</b><p>${esc(arc)} ${esc(howWin)}</p></div>
     <div class="sec"><b>Шаги к запросу после игры</b><ol class="ask">${steps.map(s=>"<li>"+esc(s)+"</li>").join("")}</ol></div>
     <div class="sec"><b>Ход за ходом</b></div>${stepHtml}`;

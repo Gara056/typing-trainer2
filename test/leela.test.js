@@ -452,6 +452,12 @@ function test(name, fn) {
     assert.ok(pdf.includes(insight.keyQuestion));
     assert.ok(!pdf.includes("проводник прошёл"));
     assert.ok(!pdf.includes("сжатое зеркало партии"));
+    assert.ok(pdf.includes("Дуга пути"));
+    assert.ok(pdf.includes("Ход за ходом"));
+    assert.ok(pdf.includes("Шаги к запросу после игры"));
+    const sheet = w.buildVedicPdfSheet();
+    const finale = w.buildFinale({ full: true });
+    assert.ok(sheet.includes(finale));
   });
 
   if (process.exitCode) {
