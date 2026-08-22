@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Лила — игра самопознания</title>
 <script>
-/* Публичный сайт: укажите адрес своего проводника. Ключ DeepSeek тогда живёт только на сервере.
-   Пример: window.LEELA_GUIDE_API = "https://your-server.example/api/guide"; */
-window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || "";
+/* Прод (leela.garaboy.ru): ключ DeepSeek только на сервере, прокси /api/guide.
+   Локально без прокси: window.LEELA_GUIDE_API = "" до загрузки, либо ключ в localStorage. */
+window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || "/api/guide";
 </script>
 <style>
 :root{

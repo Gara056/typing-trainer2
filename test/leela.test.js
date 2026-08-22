@@ -17,6 +17,8 @@ function load() {
   if (!window.requestAnimationFrame) {
     window.requestAnimationFrame = (cb) => setTimeout(cb, 0);
   }
+  // Unit-тесты идут без прокси; прод в HTML по умолчанию использует /api/guide.
+  window.LEELA_GUIDE_API = "";
   return window;
 }
 

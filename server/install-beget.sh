@@ -97,14 +97,19 @@ unset KEY
 
 python3 - <<PY
 from pathlib import Path
-old = 'window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || "";'
-new = 'window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || "/api/guide";'
+needle = 'window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || '
 ok = False
 for name in ("leela.html", "index.html"):
     p = Path("$APP_DIR") / name
     if not p.exists():
         continue
     t = p.read_text(encoding="utf-8")
+    if '/api/guide"' in t and "LEELA_GUIDE_API" in t:
+        print(f"{name}: LEELA_GUIDE_API уже /api/guide")
+        ok = True
+        continue
+    old = 'window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || "";'
+    new = 'window.LEELA_GUIDE_API = window.LEELA_GUIDE_API || "/api/guide";'
     if old not in t:
         raise SystemExit(f"не нашёл строку LEELA_GUIDE_API в {name}")
     p.write_text(t.replace(old, new, 1), encoding="utf-8")
