@@ -309,23 +309,23 @@ function test(name, fn) {
     assert.ok(/юнгиан|архетип|тень|регресс/i.test(w.GUIDE_SYSTEM));
   });
 
-  await test("guide allows five questions per move then invites the next roll", async () => {
+  await test("guide allows three questions per move then invites the next roll", async () => {
     const w = load();
     w.document.getElementById("query").value = "мой выбор";
     w.applyRoll(6);
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 3; i++) {
       await w.sendGuide("вопрос " + i);
       assert.strictEqual(w.getState().guideAsks, i);
     }
-    const afterFive = w.document.getElementById("chat-log").textContent;
-    assert.ok(afterFive.includes(w.GUIDE_CLOSE));
+    const afterThree = w.document.getElementById("chat-log").textContent;
+    assert.ok(afterThree.includes(w.GUIDE_CLOSE));
     assert.ok(w.document.getElementById("chat-input").disabled);
-    const sixth = await w.sendGuide("ещё вопрос");
-    assert.strictEqual(sixth, w.GUIDE_CLOSE);
-    assert.strictEqual(w.getState().guideAsks, 5);
+    const fourth = await w.sendGuide("ещё вопрос");
+    assert.strictEqual(fourth, w.GUIDE_CLOSE);
+    assert.strictEqual(w.getState().guideAsks, 3);
     assert.ok(!w.document.getElementById("chat-log").textContent.includes("ещё вопрос"));
     const ctx = w.buildGuideContextLite("вопрос");
-    assert.ok(ctx.includes("5/" + w.GUIDE_ASK_MAX));
+    assert.ok(ctx.includes("3/" + w.GUIDE_ASK_MAX));
     assert.ok(!ctx.includes("Психология:"));
     assert.ok(ctx.length < 800);
   });
