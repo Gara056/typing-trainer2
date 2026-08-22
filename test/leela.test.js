@@ -456,8 +456,13 @@ function test(name, fn) {
     assert.ok(pdf.includes("Ход за ходом"));
     assert.ok(pdf.includes("Шаги к запросу после игры"));
     const sheet = w.buildVedicPdfSheet();
-    const finale = w.buildFinale({ full: true });
-    assert.ok(sheet.includes(finale));
+    const blocks = w.buildVedicPdfBlocks();
+    assert.ok(blocks.length >= 4);
+    assert.ok(sheet.includes("Дуга пути"));
+    assert.ok(sheet.includes("Ход за ходом"));
+    assert.ok(sheet.includes("мой выбор"));
+    assert.ok(blocks.some((b) => b.includes("insight-cell")));
+    assert.ok(blocks.some((b) => b.includes("finale-step")));
   });
 
   if (process.exitCode) {
