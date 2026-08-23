@@ -122,6 +122,7 @@ function request(server, method, path, body, headers) {
     assert.strictEqual(calls[0].max_tokens, 280);
     assert.strictEqual(calls[0].temperature, 0.55);
     assert.ok(calls[0].messages[0].content.includes("профессиональный психолог"));
+    assert.ok(calls[0].messages[0].content.includes("НЕ пересказывай"));
     assert.ok(calls[0].messages.some((m) => m.role === "user" && m.content.includes("первый вопрос")));
   });
 

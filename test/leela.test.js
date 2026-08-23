@@ -328,8 +328,9 @@ function test(name, fn) {
     assert.ok(!w.document.getElementById("chat-log").textContent.includes("ещё вопрос"));
     const ctx = w.buildGuideContextLite("вопрос");
     assert.ok(ctx.includes("3/" + w.GUIDE_ASK_MAX));
-    assert.ok(ctx.includes("Психоякорь"));
+    assert.ok(!ctx.includes("Психоякорь"));
     assert.ok(ctx.includes("Вопрос игрока"));
+    assert.ok(ctx.includes("Не пересказывай карточку"));
     assert.ok(ctx.length < 1600);
   });
 
@@ -368,8 +369,10 @@ function test(name, fn) {
     const ctx = w.buildGuideContextLite("клетка 6");
     assert.ok(ctx.includes("мой выбор"));
     assert.ok(ctx.includes("Заблуждение"));
-    assert.ok(ctx.includes("Психоякорь"));
+    assert.ok(!ctx.includes("Психоякорь"));
     assert.ok(!ctx.includes("Психология:"));
+    assert.ok(ctx.includes("Не пересказывай карточку"));
+    assert.ok(w.GUIDE_SYSTEM.includes("НЕ пересказывай"));
     assert.strictEqual(w.getAiKey(), "");
 
     let sent;
