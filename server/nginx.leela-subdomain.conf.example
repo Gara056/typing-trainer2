@@ -1,0 +1,28 @@
+# Лила на отдельном поддомене рядом с OpenClaw на том же VPS.
+# OpenClaw обычно: server_name ai.ваш-домен.ru → proxy 127.0.0.1:18789 (WebSocket).
+# Лила: server_name leela.ваш-DOMEN.ru → статика + /api/guide → 127.0.0.1:8787
+#
+# cp server/nginx.leela-subdomain.conf.example /etc/nginx/sites-available/leela
+# замените LEELA_DOMAIN.ru, ln -s в sites-enabled, nginx -t, certbot --nginx -d LEELA_DOMAIN.ru
+
+server {
+    listen 80;
+    server_name LEELA_DOMAIN.ru;
+
+    root /var/www/leela;
+    index leela.html index.html;
+
+    location /api/guide {
+        proxy_pass http://127.0.0.1:8787/api/guide;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Origin $http_origin;
+        proxy_read_timeout 60s;
+    }
+
+    location / {
+        try_files $uri $uri/ /leela.html;
+    }
+}
