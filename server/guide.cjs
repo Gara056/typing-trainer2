@@ -33,7 +33,7 @@ function loadDotEnv(file) {
 loadDotEnv(path.join(__dirname, "..", ".env"));
 
 const SYSTEM_PROMPT =
-  "Ты проводник Лилы. Русский. Отвечай на КОНКРЕТНЫЙ вопрос игрока своими словами. Оптики: юнгианская (тень/персона/Самость), регрессивная (ранний возраст/опыт), архетипическая (клетка = сцена). Запрещено: эзотерика, нумерология, предсказания, диагнозы, гуру-поза, выдуманные номера клеток. Запрещено пересказывать карточку и повторять уже сказанное в диалоге. Каждый ответ — новый угол: одна живая гипотеза, привязанная к словам запроса и к клетке. 3–5 предложений. Шаг 1/3 — сильнее архетип; 2/3 — тень/персона; 3/3 — регрессия + смысл для запроса и мягко к броску. Если вопрос не про оптику шага — всё равно ответь на вопрос, оптику используй как подсветку.";
+  "Ты — проводник Лилы: профессиональный психолог, юнгианский аналитик, регрессолог, психотерапевт. Русский. Сначала прямо ответь на вопрос игрока — без воды, без пересказа карточки клетки и без шаблонов. Оптики по шагам 1/3–3/3: архетип клетки → тень и персона → ранний опыт и смысл для запроса. Тон: спокойный, точный, уважительный; как на консультации, не как наставник. Запрещено: эзотерика, нумерология, предсказания, диагнозы, гуру-поза, выдуманные номера клеток. Не повторяй «Уже сказано». Каждый ответ — одна ясная гипотеза, привязанная к словам вопроса и к клетке. Объём: 2–4 коротких предложения, лаконично и по существу. Шаг 3/3 — можно мягко направить к следующему броску.";
 
 const LIMITS = {
   question: 400,
@@ -43,8 +43,9 @@ const LIMITS = {
   body: 16000,
   windowMs: 10 * 60 * 1000,
   maxPerWindow: 12,
-  maxTokensOffPeak: Number(process.env.GUIDE_MAX_TOKENS) || 360,
-  maxTokensPeak: Number(process.env.GUIDE_MAX_TOKENS_PEAK) || 240,
+  maxTokensOffPeak: Number(process.env.GUIDE_MAX_TOKENS) || 280,
+  maxTokensPeak: Number(process.env.GUIDE_MAX_TOKENS_PEAK) || 180,
+  contextPeak: 2400,
   temperature: Number(process.env.GUIDE_TEMPERATURE) || 0.55,
 };
 
@@ -133,8 +134,8 @@ function createGuide(opts) {
       err.status = 400;
       throw err;
     }
-    const context = clip(payload && payload.context, LIMITS.context);
-    const histMax = peak ? 2 : LIMITS.history;
+    const context = clip(payload && payload.context, peak ? LIMITS.contextPeak : LIMITS.context);
+    const histMax = peak ? 1 : LIMITS.history;
     const history = histMax > 0 && Array.isArray(payload && payload.history)
       ? payload.history.slice(-histMax).map((m) => ({
           role: m && m.role === "me" ? "user" : "assistant",
@@ -158,6 +159,9 @@ function createGuide(opts) {
     }
     const peak = isDeepSeekPeak(nowFn());
     const { question, context, history } = sanitize(payload, peak);
+    const lengthHint = peak
+      ? "Ответ: 2–3 коротких предложения, только суть (пик тарифа DeepSeek)."
+      : "Ответ: 2–4 предложения, лаконично и исчерпывающе по вопросу.";
     const messages = [
       { role: "system", content: SYSTEM_PROMPT },
       ...history,
@@ -168,7 +172,9 @@ function createGuide(opts) {
           (context || "(нет)") +
           "\n\nВопрос игрока: " +
           question +
-          "\n\nОтветь по существу вопроса. Не повторяй блок «Уже сказано».",
+          "\n\n" +
+          lengthHint +
+          " Не повторяй блок «Уже сказано».",
       },
     ];
     const maxTokens = peak ? LIMITS.maxTokensPeak : LIMITS.maxTokensOffPeak;

@@ -303,7 +303,7 @@ button:disabled{opacity:.5;cursor:wait}
       </section>
       <section class="card" id="guide">
         <h2>Проводник</h2>
-        <p class="guide-blurb">Проводник поможет разобрать клетку глубже — через архетип, тень и ранний слой опыта. На каждый ход до трёх вопросов: за них можно увидеть смысл хода, затем мягко идём к следующему броску.</p>
+        <p class="guide-blurb">Проводник — психолог в юнгианском и регрессивном ключе. На каждый ход до 3 вопросов: ответы лаконичные и по существу. После третьего — к следующему броску.</p>
         <p class="guide-left" id="guide-left">На этот ход доступно вопросов: 3 из 3.</p>
         <div id="chat-log" class="chat-log"></div>
         <form class="chat-form" id="chat-form">
@@ -380,9 +380,9 @@ const CHARMS={
 const state={pos:0,history:[],won:false,rolling:false,queryLocked:false,look:0,mustRead:false,chat:[],charm:"",guideAsks:0,guideLog:[]};
 const GUIDE_ASK_MAX=3;
 const GUIDE_CLOSE="Суть этого хода уже прозвучала. Дай ей чуть дозреть в тебе — а дальше давай разберём следующий бросок. У тебя ещё будет время подумать над тем, что услышал.";
-const GUIDE_HELLO="Спроси про клетку и запрос — своими словами. Смотрим только архетип, тень и ранний слой опыта.";
+const GUIDE_HELLO="Спроси про клетку и запрос — своими словами. До трёх вопросов на ход: юнгианский разбор, регрессия, без эзотерики.";
 const GUIDE_SYSTEM=
-  "Ты проводник Лилы. Русский. Отвечай на КОНКРЕТНЫЙ вопрос игрока своими словами. Оптики: юнгианская (тень/персона/Самость), регрессивная (ранний возраст/опыт), архетипическая (клетка = сцена). Запрещено: эзотерика, нумерология, предсказания, диагнозы, гуру-поза, выдуманные номера клеток. Запрещено пересказывать карточку и повторять уже сказанное в диалоге. Каждый ответ — новый угол: одна живая гипотеза, привязанная к словам запроса и к клетке. 3–5 предложений. Шаг 1/3 — сильнее архетип; 2/3 — тень/персона; 3/3 — регрессия + смысл для запроса и мягко к броску. Если вопрос не про оптику шага — всё равно ответь на вопрос, оптику используй как подсветку.";
+  "Ты — проводник Лилы: профессиональный психолог, юнгианский аналитик, регрессолог, психотерапевт. Русский. Сначала прямо ответь на вопрос игрока — без воды, без пересказа карточки клетки и без шаблонов. Оптики по шагам 1/3–3/3: архетип клетки → тень и персона → ранний опыт и смысл для запроса. Тон: спокойный, точный, уважительный; как на консультации, не как наставник. Запрещено: эзотерика, нумерология, предсказания, диагнозы, гуру-поза, выдуманные номера клеток. Не повторяй «Уже сказано». Каждый ответ — одна ясная гипотеза, привязанная к словам вопроса и к клетке. Объём: 2–4 коротких предложения, лаконично и по существу. Шаг 3/3 — можно мягко направить к следующему броску.";
 const GUIDE_MODEL="deepseek-v4-flash";
 const GUIDE_HISTORY_MAX=4;
 const GUIDE_HISTORY_ITEM=320;
@@ -562,7 +562,7 @@ function renderChat(){
 }
 function guideOpening(){
   const here=state.pos?DATA.cells[state.pos-1]:null;
-  if(here) return "Клетка "+here.n+" — «"+here.name+"». До трёх вопросов: архетип, тень и ранний слой для твоего запроса.";
+  if(here) return "Клетка "+here.n+" — «"+here.name+"». До 3 вопросов на этот ход: юнгианский разбор, тень, ранний слой — лаконично и по существу.";
   return GUIDE_HELLO;
 }
 function guideAskCount(){
@@ -570,11 +570,16 @@ function guideAskCount(){
 }
 function guideTurnHint(n){
   const steps=[
-    "1/3: линза — архетип клетки; ответь на вопрос игрока через образ/сцену.",
-    "2/3: линза — тень и персона; ответь на вопрос, не повторяя шаг 1.",
-    "3/3: линза — регрессия + смысл для запроса; сожми и мягко к следующему броску."
+    "1/3: линза — архетип клетки; ответь на вопрос как психолог, через образ сцены.",
+    "2/3: линза — тень и персона; ответь точно, не повторяя шаг 1.",
+    "3/3: линза — регрессия и смысл для запроса; сожми, мягко к следующему броску."
   ];
   return steps[Math.min(Math.max(n,1),GUIDE_ASK_MAX)-1];
+}
+function guideLengthHint(peak){
+  return peak
+    ? "Ответ: 2–3 коротких предложения, только суть (пик тарифа DeepSeek)."
+    : "Ответ: 2–4 предложения, лаконично и исчерпывающе по вопросу.";
 }
 function isDeepSeekPeak(now){
   const d=now instanceof Date?now:new Date();
@@ -826,10 +831,12 @@ function pathRepeats(){
 }
 function guideHistoryPayload(){
   // Текущий вопрос уже уйдёт в финальном user — не дублируем его в history.
+  const peak=isDeepSeekPeak();
+  const histMax=peak?1:GUIDE_HISTORY_MAX;
   const rows=state.chat.filter(m=>m&&m.text&&m.text!==AI_THINK);
   let end=rows.length;
   if(end&&rows[end-1].role==="me") end-=1;
-  return rows.slice(Math.max(0,end-GUIDE_HISTORY_MAX), end).map(m=>({
+  return rows.slice(Math.max(0,end-histMax), end).map(m=>({
     role:m.role==="me"?"me":"bot",
     text:String(m.text||"").replace(GUIDE_CLOSE,"").trim().slice(0,GUIDE_HISTORY_ITEM)
   })).filter(m=>m.text);
@@ -869,7 +876,7 @@ function buildGuideContextLite(question){
   if(prior) parts.push("Уже сказано в этом ходе — НЕ повторяй: "+prior);
   parts.push("Шаг: "+turn+"/"+GUIDE_ASK_MAX+" — "+guideTurnHint(turn));
   parts.push("Дай новый угол к вопросу. Без шаблонных фраз вроде «клетка зеркало» без конкретики.");
-  if(peak) parts.push("Пик тарифа: короче, без воды.");
+  if(peak) parts.push("Пик тарифа DeepSeek: 2–3 предложения, без воды.");
   return parts.join("\n");
 }
 function buildGuideContext(question){
@@ -901,11 +908,11 @@ async function askDeepSeek(question){
   const peak=isDeepSeekPeak();
   const messages=[{role:"system",content:GUIDE_SYSTEM}];
   history.forEach(m=>messages.push({role:m.role==="me"?"user":"assistant",content:m.text}));
-  messages.push({role:"user",content:"Контекст партии:\n"+context+"\n\nВопрос игрока: "+question+"\n\nОтветь по существу вопроса. Не повторяй блок «Уже сказано»."});
+  messages.push({role:"user",content:"Контекст партии:\n"+context+"\n\nВопрос игрока: "+question+"\n\n"+guideLengthHint(peak)+" Не повторяй блок «Уже сказано»."});
   const body={
     model:GUIDE_MODEL,
     temperature:0.55,
-    max_tokens:peak?240:360,
+    max_tokens:peak?180:280,
     thinking:{type:"disabled"},
     messages
   };

@@ -388,8 +388,8 @@ function test(name, fn) {
     const body = JSON.parse(sent.opts.body);
     assert.strictEqual(body.model, w.GUIDE_MODEL);
     assert.strictEqual(body.thinking.type, "disabled");
-    assert.ok(body.max_tokens === 240 || body.max_tokens === 360);
-    assert.ok(body.messages[0].content.includes("Отвечай на КОНКРЕТНЫЙ вопрос"));
+    assert.ok(body.max_tokens === 180 || body.max_tokens === 280);
+    assert.ok(body.messages[0].content.includes("профессиональный психолог"));
     assert.ok(body.messages.some((m) => m.content && m.content.includes("мой выбор")));
     assert.ok(w.document.getElementById("chat-log").textContent.includes("Зеркало мохи"));
     assert.ok(!w.localStorage.getItem(w.STORE).includes("sk-test-leela"));
