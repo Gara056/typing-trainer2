@@ -1,1 +1,7 @@
 node_modules/
+
+# Excel / LibreOffice lock files
+~$*
+.~lock.*
+*.tmp
+
